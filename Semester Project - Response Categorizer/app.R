@@ -2,7 +2,19 @@
 
 # Categorizes uploaded responses into specified categories based on specified key words
 
-pacman::p_load(shiny,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,stringr,colourpicker,stringi)
+library(shiny)
+library(tibble)
+library(readr)
+library(haven)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(tidyverse)
+library(rlist)
+library(stringr)
+library(colourpicker)
+library(stringi)
 
 
 

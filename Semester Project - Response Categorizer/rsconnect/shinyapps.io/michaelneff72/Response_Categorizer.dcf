@@ -5,8 +5,8 @@ account: michaelneff72
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1020639
-bundleId: 2235080
+bundleId: 2719808
 url: https://michaelneff72.shinyapps.io/Response_Categorizer/
-when: 1563235579.29591
+when: 1578673558.41453
 asMultiple: FALSE
 asStatic: FALSE
