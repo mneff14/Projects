@@ -2,7 +2,7 @@
 title: "Data Science Resume (built with R-Studio)"
 author: "Michael Neff"
 output: pagedown::html_resume
-# knit: pagedown::chrome_print
+knit: pagedown::chrome_print
 ---
 
 <style type="text/css">
@@ -31,7 +31,7 @@ h2 {/* Header 2 */
 
 ## Contact info
 
-<i class="fa fa-mobile-alt"></i> (321)961-4283   
+<i class="fa fa-mobile-alt"></i> (321) 961-4283   
 <i class="fa fa-envelope"></i> nef16009@byui.edu  
 <i class="fa fa-linkedin"></i> [https://www.linkedin.com/in/michael-neff-158795166](https://www.linkedin.com/in/michael-neff-158795166)
 
@@ -39,7 +39,6 @@ h2 {/* Header 2 */
 ## Portfolio
 <i class="fa fa-github"></i> [https://github.com/mneff14](https://github.com/mneff14)  
 <i class="fa fa-globe-americas"></i> [My Portfolium](https://portfolium.com/MichaelNeff3)
-
 
 
 
@@ -74,18 +73,10 @@ Google Teams
 This resume was created with R-Studio in HTML and CSS
 
 
-
-
-
-
 # Main
 
 
-
-
 ## Michael Neff {#title}
-
-
 
 
 ## Education {data-icon=graduation-cap}
@@ -117,7 +108,7 @@ Dec 2016 - Dec 2020
 
 
 
-<!-- ## Work Experience {data-icon=suitcase} -->
+## Work Experience {data-icon=suitcase}
 
 
 
@@ -137,20 +128,20 @@ Dec 2016 - Dec 2020
 
 
 
-<!-- ### Detroit Diesel Worker -->
+### Detroit Diesel Worker
 
-<!-- Ascend Staffing (435-833-9700) -->
+Ascend Staffing (435-833-9700)
 
-<!-- Tooele, UT -->
+Tooele, UT
 
-<!-- June 2017 - Jan 2019 (14 Months Working) -->
+June 2017 - Jan 2019 (14 Months Working)
 
-<!-- <i class="fa fa-phone"></i> 435-843-6000 -->
+<i class="fa fa-phone"></i> 435-843-6000
 
-<!-- * Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools. -->
-<!-- * Excelled in abiding by procedures with top quality first, then efficiency next. -->
-<!-- * Learned proccesses quickly and became a great asset to each new area and team. -->
-<!-- * Befriended each co-worker and was able to have fun and work harder with each of them. -->
+* Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools.
+* Excelled in abiding by procedures with top quality first, then efficiency next.
+* Learned proccesses quickly and became a great asset to each new area and team.
+* Befriended each co-worker and was able to have fun and work harder with each of them.
 
 
 
@@ -193,17 +184,17 @@ Dec 2016 - Dec 2020
 ## Data Science Experience {data-icon=chart-area}
 
 
-### Data Science Society
+<!-- ### Data Science Society -->
 
-Brigham Young University - Idaho
+<!-- Brigham Young University - Idaho -->
 
-Rexburg, Idaho
+<!-- Rexburg, Idaho -->
 
-June 2019 - Current
+<!-- June 2019 - Current -->
 
-* Participated in a team that created a Shiny app on R Studio for SCOTs that helps teachers implement and understand surveys in the classroom  
-* Collaborated with team members via GitHub and Slack  
-* Discovered ways to use R-Studio to retrieve information from thousands of websites  
+<!-- * Participated in a team that created a Shiny app on R Studio for SCOTs that helps teachers implement and understand surveys in the classroom   -->
+<!-- * Collaborated with team members via GitHub and Slack   -->
+<!-- * Discovered ways to use R-Studio to retrieve information from thousands of websites   -->
 
 
 
@@ -229,17 +220,17 @@ April 2019 - July 2019
 
 
 
-### Improv Comedy Theater
+<!-- ### Improv Comedy Theater -->
 
-Brigham Young University - Idaho
+<!-- Brigham Young University - Idaho -->
 
-Rexburg, Idaho
+<!-- Rexburg, Idaho -->
 
-April 2017 - Current
+<!-- April 2017 - Current -->
 
-* Gained many valuable life skills by learning how to create well-structured scenes on the spot with my team  
-* Performed in many hilarious shows with my Improv team that spread many smiles  
-* Energized the audience and led Improv games as an emcee in many shows  
+<!-- * Gained many valuable life skills by learning how to create well-structured scenes on the spot with my team   -->
+<!-- * Performed in many hilarious shows with my Improv team that spread many smiles   -->
+<!-- * Energized the audience and led Improv games as an emcee in many shows   -->
 
 
 
