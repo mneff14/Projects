@@ -5,18 +5,6 @@ output: pagedown::html_resume
 knit: pagedown::chrome_print
 ---
 
-```{css, echo=FALSE}
-
-@page {
-  size: letter portrait;
-  padding: 0 0 0 0;
-}
-# .blocks {
-#   break-inside: avoid;
-# }
-
-```
-
 
 <style type="te xt/css">
 
@@ -36,17 +24,6 @@ h2 {/* Header 2 */
     font-size: 12px;
     font-family: "Georgia";
 }
-main {
-  padding: 0 0 0 0;
-}
-sidebar {
-  position: relative;
-  padding: 0 0 0 0;
-}
-title {
-  position: relative;
-  margin: 0 0 0 0;
-}
 
 </style>
 
@@ -59,12 +36,14 @@ title {
 
 <i class="fa fa-mobile-alt"></i> (321) 961-4283   
 <i class="fa fa-envelope"></i> nef16009@byui.edu  
-<i class="fa fa-linkedin"></i> [https://www.linkedin.com/in/michael-neff-158795166](https://www.linkedin.com/in/michael-neff-158795166)
+<i class="fa fa-linkedin"></i> [My LinkedIn Profile https://www.linkedin.com/in/michael-neff-158795166](https://www.linkedin.com/in/michael-neff-158795166)
 
 
 ## Portfolio
 <i class="fa fa-github"></i> [https://github.com/mneff14](https://github.com/mneff14)  
-<i class="fa fa-globe-americas"></i> [My Portfolium](https://portfolium.com/MichaelNeff3)
+<i class="fa fa-globe-americas"></i> [My Portfolium](https://portfolium.com/MichaelNeff3)  
+<i class="fa fa-globe-americas"></i> [My Excel Projects https://portfolium.com/entry/my-excel-projects](https://portfolium.com/entry/my-excel-projects)  
+
 
 ## Skills
 
@@ -73,31 +52,11 @@ Python
 C++   
 SQL
 
-MS Excel  
-MS PowerPoint  
-MS Word  
+**MS Excel (Advanced)**  
+MS PowerPoint (Advanced)  
+MS Word (Advanced)  
 SmartOffice  
 
-<!-- Include if only one page: -->
-
-<!-- Data Analysis   -->
-<!-- Data Wrangling   -->
-<!-- Data Visualization   -->
-<!-- Telling stories with Data   -->
-<!-- Answering questions with Data   -->
-
-<!-- Worldview Literacy   -->
-<!-- Presentation   -->
-<!-- Customer Service   -->
-<!-- Self-Motivation   -->
-
-<!-- Github   -->
-<!-- Slack   -->
-<!-- Google Teams   -->
-
-<!-- ## Disclaimer -->
-
-<!-- This resume was created with R-Studio in HTML and CSS -->
 
 
 
@@ -148,9 +107,9 @@ Rexburg, Idaho
 
 June 2019 - Current
 
-* Participated in a team that created a Shiny app on R Studio for SCOTs that helps teachers implement and understand surveys in the classroom
-* Collaborated with team members via GitHub and Slack
-* Discovered ways to use R-Studio to retrieve information from thousands of websites
+* Participated in a team that created a Shiny app on R Studio for SCOTs that helps teachers implement and understand surveys in the classroom  
+* Collaborated with team members via GitHub, Slack, and Google Sheets    
+* Discovered ways to use R-Studio to retrieve information from thousands of websites    
 
 
 
@@ -162,7 +121,7 @@ Rexburg, Idaho
 
 April 2019 - July 2019  
 
-*	Analyzed and created surveys using Qualtrics and R-Studio that captured the culture of the students
+*	Analyzed and created surveys using Qualtrics, Excel, and R-Studio that captured the culture of the students
 * Presented the results of our analyses to the university administrators and helped them make important decisions regarding the culture of the university
 * Created a survey categorization R Shiny app that is designed to improve the productivity of the Data Team by 200%
 
@@ -186,9 +145,8 @@ Jan 2020 - Current
 
 <i class="fa fa-phone"></i> 785-841-7676
 
-* Filled in for Margaret's receptionist taking calls, organizing files, making automated spreadsheets, and other hepful tasks.  
-* Warmly greeted and helped guests so that each left with confidence and a smile.
-* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as re-organizing the supply closet and helping Margaret learn SmartOffice.  
+* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as creating automated Excel spreadsheets, organizing the supply closet, and helping Margaret learn SmartOffice    
+* Filled in for Margaret's receptionist taking calls, organizing files, making automated spreadsheets on Excel, and warmly greeting guests      
 
 
 
@@ -203,8 +161,8 @@ June 2019 - Aug 2019
 <i class="fa fa-phone"></i> 435-843-4480
 
 <!-- * Manufactured, pinned, moved, rolled, and stored concrete canvases in pairs or teams. -->
-* Built great relationships with my co-workers (some bilangual) that allowed work to be easier and more enjoyable.  
-* Worked consistently and punctually, making sure to start and finish on time, every time.
+* Built great relationships with my co-workers (some bilangual) that allowed work to be easier and more enjoyable  
+* Worked consistently and punctually, making sure to start and finish on time, every time  
 
 
 
@@ -218,10 +176,10 @@ June 2017 - Jan 2019 (14 Months Working)
 
 <i class="fa fa-phone"></i> 435-843-6000
 
-<!-- * Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools. -->
-* Excelled in abiding by procedures with top quality first, then efficiency next.
-* Learned proccesses quickly and became a great asset to each new area and team.
-* Befriended each co-worker and was able to have fun and work harder with each of them.
+<!-- * Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools   -->
+* Excelled in abiding by procedures with top quality first, then efficiency next  
+* Learned proccesses quickly and became a great asset to each new area and team  
+* Befriended each co-worker and was able to have fun and work harder with each of them  
 
 
 
@@ -235,9 +193,9 @@ Oct 2016 - Jan 2017
 
 <i class="fa fa-phone"></i> 321-953-3388
 
-* Happily cleaned the theaters, halls, bathrooms, and lobby with punctuality and quality.
-* Directed customers to their theater and the cleaning of theaters and changing of mylars.
-* Greeted customers warmly, making them a little happier while assisting them purchase tickets and concessions.
+* Happily cleaned the theaters, halls, bathrooms, and lobby with punctuality and quality  
+* Directed customers to their theater and the cleaning of theaters and changing of mylars  
+* Greeted customers warmly, making them a little happier while assisting them purchase tickets and concessions  
 
 
 
@@ -251,9 +209,9 @@ Oct 2016 - Jan 2017
 
 <!-- <i class="fa fa-phone"></i> 800-723-0277 -->
 
-<!-- * Fulfilled daily orders with my supervisor accurately and promptly.   -->
-<!-- * Stacked and unloaded pallets swiftly and with order.   -->
-<!-- * Completed every new task confidently, learning to do so with quality and efficiency.   -->
+<!-- * Fulfilled daily orders with my supervisor accurately and promptly   -->
+<!-- * Stacked and unloaded pallets swiftly and with order    -->
+<!-- * Completed every new task confidently, learning to do so with quality and efficiency   -->
 
 
 
@@ -338,9 +296,10 @@ April 2017 - July 2017
 <!-- * Lead students to learn for themselves with effective tutoring techniques, such as not writing on their paper   -->
 
 
-
-
 ```{css, echo=FALSE}
+
+# Include if resume is two pages
+
 .extra-sidebar {
   top: 0;
   padding-top: 0;
@@ -374,6 +333,7 @@ Reliablility
 Improvement  
 Quick Learning  
 Cooperation  
+Detail-Oriented  
 
 Github  
 Slack  
@@ -407,14 +367,37 @@ Google Teams
 </br>
 </br>
 </br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
 
 
 ## Disclaimer
 
 This resume was created with R-Studio in HTML and CSS
+
+
+```{css, echo=FALSE}
+
+@page {
+  size: letter portrait;
+  padding: 0 0 0 0;
+}
+# .blocks {
+#   break-inside: avoid;
+# }
+.main {
+  padding: 0 0 0 0;
+}
+.sidebar {
+  position: relative;
+  padding: 0 0 0 0;
+}
+.title {
+  position: relative;
+  margin: 0 0 0 0;
+}
+
+```
+
+
