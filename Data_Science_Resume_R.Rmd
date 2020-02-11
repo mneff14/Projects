@@ -48,14 +48,16 @@ h2 {/* Header 2 */
 ## Skills
 
 R, R-Shiny  
+SQL
 Python  
 C++   
-SQL
+GDScript
 
-**MS Excel (Advanced)**  
+MS Excel (Advanced)  
 MS PowerPoint (Advanced)  
 MS Word (Advanced)  
 SmartOffice  
+Godot
 
 
 
@@ -145,8 +147,8 @@ Jan 2020 - Current
 
 <i class="fa fa-phone"></i> 785-841-7676
 
-* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as creating automated Excel spreadsheets, organizing the supply closet, and helping Margaret learn SmartOffice    
-* Filled in for Margaret's receptionist taking calls, organizing files, making automated spreadsheets on Excel, and warmly greeting guests      
+* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as creating automated Excel spreadsheets, organizing the supply closet, and helping Margaret utilize SmartOffice    
+* Filled in for Margaret's receptionist taking calls, organizing files, making automated spreadsheets on Excel, creating dynamic reports on SmartOffice, and warmly greeting guests      
 
 
 
@@ -160,7 +162,7 @@ June 2019 - Aug 2019
 
 <i class="fa fa-phone"></i> 435-843-4480
 
-<!-- * Manufactured, pinned, moved, rolled, and stored concrete canvases in pairs or teams. -->
+<!-- * Manufactured, pinned, moved, rolled, and stored concrete canvases in pairs or teams -->
 * Built great relationships with my co-workers (some bilangual) that allowed work to be easier and more enjoyable  
 * Worked consistently and punctually, making sure to start and finish on time, every time  
 
