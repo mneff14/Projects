@@ -30,36 +30,38 @@ h2 {/* Header 2 */
 
 # Aside
 
-![](C:\Users\mneff\Desktop\College Stuff\IMG_1902.jpg)
+![](C:\Users\mneff\Desktop\College Stuff\Professional_Photo.jpg)
 
 ## Contact info
 
 <i class="fa fa-mobile-alt"></i> (321) 961-4283   
 <i class="fa fa-envelope"></i> nef16009@byui.edu  
-<i class="fa fa-linkedin"></i> [My LinkedIn Profile https://www.linkedin.com/in/michael-neff-158795166](https://www.linkedin.com/in/michael-neff-158795166)
+<i class="fa fa-linkedin"></i> [My LinkedIn Profile](https://www.linkedin.com/in/michael-neff-158795166)
 
 
 ## Portfolio
-<i class="fa fa-github"></i> [https://github.com/mneff14](https://github.com/mneff14)  
+<i class="fa fa-github"></i> [My GitHub](https://github.com/mneff14)  
 <i class="fa fa-globe-americas"></i> [My Portfolium](https://portfolium.com/MichaelNeff3)  
-<i class="fa fa-globe-americas"></i> [My Excel Projects https://portfolium.com/entry/my-excel-projects](https://portfolium.com/entry/my-excel-projects)  
+<i class="fa fa-globe-americas"></i> [My Excel Projects](https://portfolium.com/entry/my-excel-projects)  
 
 
-## Skills
 
-R, R-Shiny  
-SQL
-Python  
-C++   
-GDScript
-
-MS Excel (Advanced)  
-MS PowerPoint (Advanced)  
-MS Word (Advanced)  
-SmartOffice  
-Godot
+## References {data-icon=chain}
 
 
+**Eddy Halter**   
+Evergy - Sen. Dir of Enterprise Analytics     
+<i class="fa fa-phone"></i> (816) 260-1333    
+
+
+**Martin Johnston**   
+Evergy - RPA Mentor    
+<i class="fa fa-phone"></i> (785) 220-7463   
+
+
+**Margaret Stenseng**   
+Waddell & Reed - Financial Advisor    
+<i class="fa fa-phone"></i> (785) 841-7676     
 
 
 
@@ -78,7 +80,7 @@ Bachelors of Science in Data Science
 
 Rexburg, Idaho
 
-Dec 2016 - Dec 2020
+Dec 2016 - Apr 2020
 
 3.9 GPA
 
@@ -90,7 +92,7 @@ Dec 2016 - Dec 2020
 
 <!-- Melbourne, Florida -->
 
-<!-- Grad: May 2014 -->
+<!-- Aug 2013 - May 2014 -->
 
 
 
@@ -123,8 +125,9 @@ Rexburg, Idaho
 
 April 2019 - July 2019  
 
-*	Analyzed and created surveys using Qualtrics, Excel, and R-Studio that captured the culture of the students
-* Presented the results of our analyses to the university administrators and helped them make important decisions regarding the culture of the university
+*	Analyzed and created surveys using Qualtrics, Excel, and R-Studio that captured the culture of the students  
+
+<!-- * Presented the results of our analyses to the university administrators and helped them make important decisions regarding the culture of the university -->
 * Created a survey categorization R Shiny app that is designed to improve the productivity of the Data Team by 200%
 
 
@@ -137,67 +140,86 @@ April 2019 - July 2019
 
 
 
-### Waddell & Reeds Assistant
+### Data Science Intern  
 
-Express Employment Professionals (785-749-7550)
+Evergy, Inc.
+
+Topeka, KS  
+
+June 2020 - Aug 2020  
+
+* Contributed with the Enterprise Analytics team to help all of Evergy leverage data and analytics by automating approval processes.  
+* Participated in analytics groups to help sharpen my data science skills, such as the R/Python User group.  
+* Created a Work Fusion (RPA Express) bot that saved other departments days of menial labor by automatically downloading Voucher PDFs as specified on an Excel sheet.  
+* Implemented Microsoft Power Automate flows that automated customizable Approval processes.  
+* Learned on the job how to use Work Fusion, Microsoft Power Automate, and Microsoft Power Apps to design efficient automations.  
+* Impressed the Evergy Automation team with the flows I created and helped their teammates find solutions to their automations when they added me to their team.      
+* Designed an extendable Microsoft Power App that enables the user to initiate and track their own automated business processes and will save them and future designers many hours of menial labor and re-designing similar automations.  
+
+
+
+### Waddell & Reed Administrative Assistant
+
+Express Employment Professionals (785) 749-7550
 
 Lawrence, KS
 
-Jan 2020 - Current
+Jan 2020 - Mar 2020
 
-<i class="fa fa-phone"></i> 785-841-7676
+<i class="fa fa-phone"></i> (785) 841-7676
 
-* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as creating automated Excel spreadsheets, organizing the supply closet, and helping Margaret utilize SmartOffice    
-* Filled in for Margaret's receptionist taking calls, organizing files, making automated spreadsheets on Excel, creating dynamic reports on SmartOffice, and warmly greeting guests      
+<!-- * Tidied, standardized, and connected all client data on SmartOffice, Docupace, and DST Vision so my coworkers could finally work with a clean database and focus on their clients -->
+* Improved my co-workers' efficiency by completing my tasks in a way that made it easier for the next person, such as automating Excel spreadsheets, organizing the office, standardizing client data entry, and creating a How-To manual  
+* Created dynamic reports on SmartOffice and Excel that helped my supervisor visualize her clients' data and make important decisions regarding them
 
 
 
-### MidWest Canvas Worker
+<!-- ### MidWest Canvas Worker -->
 
-Ascend Staffing (435-833-9700)
+<!-- Ascend Staffing (435-833-9700) -->
 
-Tooele, UT
+<!-- Tooele, UT -->
 
-June 2019 - Aug 2019
+<!-- June 2019 - Aug 2019 -->
 
-<i class="fa fa-phone"></i> 435-843-4480
+<!-- <i class="fa fa-phone"></i> 435-843-4480 -->
 
 <!-- * Manufactured, pinned, moved, rolled, and stored concrete canvases in pairs or teams -->
-* Built great relationships with my co-workers (some bilangual) that allowed work to be easier and more enjoyable  
-* Worked consistently and punctually, making sure to start and finish on time, every time  
+<!-- * Worked consistently and punctually, making sure to start and finish on time, every time   -->
+<!-- * Built great relationships with my co-workers (some bilangual) that allowed work to be easier and more enjoyable   -->
 
 
 
-### Detroit Diesel Worker
+<!-- ### Detroit Diesel Worker -->
 
-Ascend Staffing (435-833-9700)
+<!-- Ascend Staffing (435-833-9700) -->
 
-Tooele, UT
+<!-- Tooele, UT -->
 
-June 2017 - Jan 2019 (14 Months Working)
+<!-- June 2017 - Jan 2019 (14 Months Working) -->
 
-<i class="fa fa-phone"></i> 435-843-6000
+<!-- <i class="fa fa-phone"></i> 435-843-6000 -->
 
-<!-- * Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools   -->
-* Excelled in abiding by procedures with top quality first, then efficiency next  
-* Learned proccesses quickly and became a great asset to each new area and team  
-* Befriended each co-worker and was able to have fun and work harder with each of them  
+<!-- <!-- * Cleaned diesel engine parts with glass-beaders, balanced turbo wheels with delicate machinery and grinders, and prepped turbo shells with all kinds of delicate and heavy machinery and tools -->
+<!-- * Excelled in abiding by procedures with top quality first, then efficiency next -->
+<!-- * Learned proccesses quickly and became a great asset to each new area and team -->
+<!-- * Befriended each co-worker and was able to have fun and work harder with each of them -->
 
 
 
-### Movie Theater Usher/Stub-Master/Cashier
+<!-- ### Movie Theater Usher/Stub-Master/Cashier -->
 
-Premier Theaters Oaks Stadium 10
+<!-- Premier Theaters Oaks Stadium 10 -->
 
-Melbourne, FL
+<!-- Melbourne, FL -->
 
-Oct 2016 - Jan 2017
+<!-- Oct 2016 - Jan 2017 -->
 
-<i class="fa fa-phone"></i> 321-953-3388
+<!-- <i class="fa fa-phone"></i> 321-953-3388 -->
 
-* Happily cleaned the theaters, halls, bathrooms, and lobby with punctuality and quality  
-* Directed customers to their theater and the cleaning of theaters and changing of mylars  
-* Greeted customers warmly, making them a little happier while assisting them purchase tickets and concessions  
+<!-- * Happily cleaned the theaters, halls, bathrooms, and lobby with punctuality and quality -->
+<!-- * Directed customers to their theater and the cleaning of theaters and changing of mylars -->
+<!-- * Greeted customers warmly, making them a little happier while assisting them purchase tickets and concessions -->
 
 
 
@@ -207,13 +229,13 @@ Oct 2016 - Jan 2017
 
 <!-- Moab, UT -->
 
-<!-- June 2014 - August 2014  -->
+<!-- June 2013 - August 2014 (Two Summers) -->
 
 <!-- <i class="fa fa-phone"></i> 800-723-0277 -->
 
-<!-- * Fulfilled daily orders with my supervisor accurately and promptly   -->
-<!-- * Stacked and unloaded pallets swiftly and with order    -->
-<!-- * Completed every new task confidently, learning to do so with quality and efficiency   -->
+<!-- * Fulfilled daily orders with my supervisor accurately and promptly -->
+<!-- * Stacked and unloaded pallets swiftly and with order -->
+<!-- * Completed every new task confidently, learning to do so with quality and efficiency -->
 
 
 
@@ -271,31 +293,36 @@ April 2017 - July 2017
 
 
 
-<!-- ### Junior High Math Tutor   -->
+### Junior High Math Tutor
 
-<!-- Madison Junior High -->
+Madison Junior High
 
-<!-- Rexburg, Idaho -->
+Rexburg, Idaho
 
-<!-- January 2018 - April 2018   -->
+January 2018 - April 2018
 
-<!-- * Improved students’ conceptual understanding of various mathematical concepts in grades 7 through 9 by asking guiding questions   -->
-<!-- * Increased class productivity in three classrooms by helping each teacher address individual student concerns   -->
-<!-- * Spread motivation to learn by getting to know each student better each day   -->
+* Improved students’ conceptual understanding of various mathematical concepts in grades 7 through 9 by asking guiding questions
+* Increased class productivity in three classrooms by helping each teacher address individual student concerns
+* Spread motivation to learn by getting to know each student better each day
 
 
 
-<!-- ### High School Math Tutor   -->
+### High School Math Tutor
 
-<!-- Central High School -->
+Central High School
 
-<!-- Rexburg, Idaho -->
+Rexburg, Idaho
 
-<!-- January 2018 - April 2018   -->
+January 2018 - April 2018
 
-<!-- * Helped struggling students become more confident problem-solvers by teaching them how to take advantage of available resources   -->
-<!-- * Ensured classroom organization in the absence of the instructor through clear directions and the assumption of compliance   -->
-<!-- * Lead students to learn for themselves with effective tutoring techniques, such as not writing on their paper   -->
+* Helped struggling students become more confident problem-solvers by teaching them how to take advantage of available resources
+* Ensured classroom organization in the absence of the instructor through clear directions and the assumption of compliance
+* Lead students to learn for themselves with effective tutoring techniques, such as not writing on their paper
+
+
+
+
+
 
 
 ```{css, echo=FALSE}
@@ -318,29 +345,51 @@ April 2017 - July 2017
 
 # Second page sidebar {.aside .extra-sidebar}
 
+### Programming Skills  
+R, R-Shiny  
+Python  
+SQL  
+C++   
+GDScript  
+VBA  
+GAS (Google Apps Script)  
+Work Fusion (RPA Express)  
 
+### Technical Skills  
+MS Excel (Advanced)  
+MS PowerPoint (Advanced)  
+MS Word (Advanced)  
+Google Apps  
+SmartOffice  
+Docupace  
+DST Vision  
+Godot  
+<!-- Github   -->
+<!-- Slack   -->
+<!-- Google Teams  -->
+<!-- Zoom   -->
+
+
+### Analytical Skills  
 Data Analysis  
 Data Wrangling  
 Data Visualization  
 Telling stories with Data  
 Answering questions with Data  
 
-Worldview Literacy  
+### Qualitative Skills  
 Integrity   
-
+Worldview Literacy  
+Teaching Simply  
+Reliablility   
 Customer Service  
 Self-Motivation  
 Efficiency  
-Reliablility   
-Improvement  
-Quick Learning  
-Cooperation  
+Growth Mindset    
+Quick Learner  
+Cooperative  
 Detail-Oriented  
 
-Github  
-Slack  
-Google Teams  
-
 
 </br>
 </br>
@@ -350,25 +399,25 @@ Google Teams
 </br>
 </br>
 </br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
-</br>
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
+<!-- </br> -->
 <!-- </br> -->
 <!-- </br> -->
 <!-- </br> -->
