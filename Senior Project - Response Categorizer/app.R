@@ -19,18 +19,22 @@ library(stringi)
 
 
 
-#### UI
+##### ----- UI ----- #####
 
 
 
 
 ui <- fluidPage(
 
-  ## INPUT FUNCTIONS
+  ##### INPUT FUNCTIONS #####
   
+  # Title
   h1(em("Survey Response Categorizer")),
 
+  #### Sidebar Panel ####
   sidebarPanel(
+    
+    #### * Browse File Button ####
     # Browse for responses and saves the datapath  
     fileInput("responses", "Import Responses", 
               buttonLabel = "Browse",
@@ -40,26 +44,34 @@ ui <- fluidPage(
                          ".xlsx", 
                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     ),
-
+    
+    #### * Browse File Conditional Panel ####
     # These allow other categories to be added / removed when file is uploaded
     conditionalPanel(
       condition = "output.fileValid",
-      # Button to add a category
+      
+      #### * * Add Category Button ####
       actionButton("ctgAdd", "Add Category"),
-      # Default Category and Remove button
+      
+      #### * * Add Category Conditional Panel ####
       conditionalPanel(
         condition = "input.ctgAdd",
         wellPanel(
-          # Name of Default Category
+          
+          #### * * * Default Category Name ####
           textInput("defaultName", "Default",
                     label = "Default Category Name"),
-          # Button to Remove a category
+          
+          #### * * * Remove Category Buttons Placeholder ####
           tags$div(id = "removeCtgButton")
           
         ),
+        
+        #### * * Multiple Categories Checkbox ####
         # Option to signify whether to have one or multiple categories per response
         checkboxInput("multCtgsPerResponse", label = "Multiple Categories per Response", value = TRUE),
         
+        #### * * Category Placeholder ####
         # To hold all of the categories and their rules
         fluidRow(
           wellPanel(
@@ -70,31 +82,43 @@ ui <- fluidPage(
     )
   ),
   
+  #### Update Button ####
   # Makes a button labeled "Update""
   actionButton("update", "Update"),
  
+  #### Main Panel ####
   mainPanel(
     br(),
+    
+    #### * Update Conditional Panel ####
     # The Plot and Table tabsets will appear when a category has been added
     conditionalPanel(
       condition = "input.update",
-      # Tabset layout for the plot and table
+      
+      #### * * Plot and Table Tabset ####
       tabsetPanel(
+        
+        #### * * * Plot Tab ####
         # Tab for the main plot and customizations
         tabPanel("Plot", br(), 
-                 # The main plot
+                 
+                 #### * * * * Main Plot Output ####
                  plotOutput("plot"),
                  br(),
+                 
+                 #### * * * * Main Plot Conditional Panel ####
                  # Displays the UI's for Plot Customizations as long as a plot is displayed
                  conditionalPanel(
                    condition = "output.plotDisplayed",
-                   # Plot Customizations
+                   
+                   # Plot Customizations Panel
                    wellPanel(
                      h2("Plot Customizations"),
                      h4(em('Push "Update" to apply changes')),
                      tabsetPanel(
-                       # aesthetics customizations
-                       tabPanel("Aesthetics", br(),
+                       
+                       #### * - - - - - Aesthetics Customizations ####
+                       tabPanel("Aesthetics", br(), 
                                 fluidRow(
                                   column(width = 4,
                                          # Bar Position
@@ -117,7 +141,8 @@ ui <- fluidPage(
                                 # UI rendered depending on whether Uniform or Individual aesthetics is chosen
                                 uiOutput("aesUIs")
                                 ),
-                       # Labels customizations
+                       
+                       #### * - - - - - Labels Customizations ####
                        tabPanel("Labels", br(),
                                 fluidRow(
                                   # Options for Plot Labels
@@ -152,12 +177,13 @@ ui <- fluidPage(
                                   )
                                 )
                        ),
-                       # Plot customizations
+                       
+                       #### * - - - - - Plot Customizations ####
                        tabPanel("Plot", br(),
                                 h4("To Save Plot:"),
                                 h5(em("Right click (Ctrl + Click for Macs) on plot and select 'Save Image'")),
                                 br(),
-                                  # #### NOT WORKING ####
+                                  # -- NOT WORKING -- 
                                   # # Save plot button
                                   # downloadButton("downloadPlot", label = "Download Plot "),
                                   # h5(strong("Save As")),
@@ -480,7 +506,8 @@ ui <- fluidPage(
                    )
                  )
         ),
-        # Tab for the table
+        
+        #### * * * Table Tab ####
         tabPanel("Table", br(), 
                  # Table showing which responses are in which category
                  dataTableOutput("table"))
@@ -496,7 +523,7 @@ ui <- fluidPage(
 
 
 
-#### SERVER
+##### ----- SERVER ----- #####
 
 
 
@@ -510,11 +537,12 @@ server <- function(input, output, session) {
   
   
   
-  ## REACTIVE FUNCTIONS
-
+  #### REACTIVE FUNCTIONS ####
   
   
   
+  
+  #### getData() ####
   ## Reads in file
   getData <- reactive({
   
@@ -535,6 +563,7 @@ server <- function(input, output, session) {
   })
 
   
+  #### sortData_GG() ####
   ## Sorts the data
   sortData_GG <- reactive({
     data <- getData()
@@ -731,6 +760,7 @@ server <- function(input, output, session) {
   
   
   
+  #### plotGG() ####
   ## Will plot the ggplot to show how many responses are in which category
   plotGG <- reactive({
     ## Get the responses data sorted into categories
@@ -1026,6 +1056,7 @@ server <- function(input, output, session) {
   })
   
   
+  #### plotTable() ####
   ## Will plot a table of the data
   plotTable <- reactive({
     ## Get the responses data sorted into categories
@@ -1050,6 +1081,7 @@ server <- function(input, output, session) {
   
   
   
+  #### updatePushed_plotGG() ####
   ## Calls and returns return value of plotGG when "Update" button is pushed
   updatePushed_plotGG <- eventReactive(input$update, {
     # Saves graph of the data to reactive values
@@ -1057,6 +1089,7 @@ server <- function(input, output, session) {
   })
   
   
+  #### updatePushed_plotTable() ####
   ## Calls and returns return value of plotTable when "Update" button is pushed
   updatePushed_plotTable <- eventReactive(input$update, {
     # Plots the table of the data
@@ -1066,9 +1099,10 @@ server <- function(input, output, session) {
   
   
   
+  #### Observe Event -- Add Category ####
   ## Adds the Category Name text input and Add Rule button when the Add Category button is pushed
   observeEvent(input$ctgAdd, {
-    ## Make id's for all category UI's and the category itself
+    ## Make dynamic id's for all category UI's and the category itself
     id_add <- paste0(input$ctgAdd)
     ctg_id <- paste0("ctg_", id_add)
     ctg_name_id <- paste0(ctg_id, "_name")
@@ -1082,7 +1116,7 @@ server <- function(input, output, session) {
     rv[[ctg_num_rules_id]] <- 0
 
     
-    ## Add the category ui's
+    #### * Insert Category UI's ####
     insertUI("#categories",
              "beforeEnd",
              tags$div(
@@ -1114,7 +1148,7 @@ server <- function(input, output, session) {
     rv[[ctg_id]] <- TRUE
 
     
-    ## Insert the remove category button
+    #### * Insert Remove Category Button ####
     insertUI(
       selector = "#removeCtgButton",
       ui = tags$div(
@@ -1127,7 +1161,8 @@ server <- function(input, output, session) {
     rv[[remove_ctg_id]] <- TRUE
     
     
-    ## Remove all elements in category when remove category button is pushed
+    #### * Observe Event -- Remove Category ####
+    ## Removes all elements in category when remove category button is pushed
     observeEvent(input[[remove_ctg_button_id]], {
       # Removes all ui's within the category
       removeUI(
@@ -1144,6 +1179,7 @@ server <- function(input, output, session) {
     }, ignoreInit = TRUE, once = TRUE)
     
     
+    #### * Observe Event -- Add Rule ####
     ## Add all rule UI's when category Add Rule button is pushed
     observeEvent(input[[ctg_add_rule_button_id]], {
       ## Make id's for rule UI's and the rule itself
@@ -1157,7 +1193,7 @@ server <- function(input, output, session) {
       remove_rule_button_id <- paste0("remove_rule_button_", id_add_rule, ctg_id)
 
          
-      ## Insert the rule UI's
+      #### * * Insert Rule UI's ####
       insertUI(
         selector = paste0("#", ctg_id, "_rules"),
         ui = tags$div(
@@ -1188,7 +1224,7 @@ server <- function(input, output, session) {
       rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] + 1
 
 
-      ## Insert the remove rule button
+      #### * * Insert Remove Rule Button ####
       insertUI(
         selector = paste0("#", ctg_id, "_remove_rule_buttons"),
         ui = tags$div(
@@ -1202,7 +1238,8 @@ server <- function(input, output, session) {
       rv[[remove_rule_id]] <- TRUE
       
       
-      ## Remove all elements in rule when remove rule button is pushed
+      #### * * Observe Event -- Remove Rule ####
+      ## Removes all elements in rule when remove rule button is pushed
       observeEvent(input[[remove_rule_button_id]], {
         # Removes all ui's within the rule
         removeUI(
@@ -1227,17 +1264,19 @@ server <- function(input, output, session) {
   
 
   
-  #### OUTPUT FUNTIONS
+  #### OUTPUT FUNTIONS ####
   
   
   
+  #### Event Reactive -- fileValid ####
   ## Returns true if uploaded file is an accepted type
   output$fileValid <- eventReactive(input$responses, {
     return(getData())
   })
   outputOptions(output, 'fileValid', suspendWhenHidden = FALSE)
 
-    
+  
+  #### Event Reactive -- categoriesAdded ####
   ## Returns true if categories have been added
   output$categoriesAdded <- eventReactive(input$update, {
     ifelse(input$ctgAdd > 0, return(TRUE), return(FALSE))    
@@ -1245,6 +1284,7 @@ server <- function(input, output, session) {
   outputOptions(output, 'categoriesAdded', suspendWhenHidden = FALSE)
   
   
+  #### Event Reactive -- plotDisplayed ####
   ## Returns true if plot has been created
   output$plotDisplayed <- eventReactive(input$update, {
     return(!is.null(plotGG()))
@@ -1252,6 +1292,7 @@ server <- function(input, output, session) {
   outputOptions(output, 'plotDisplayed', suspendWhenHidden = FALSE)
   
   
+  #### Event Reactive -- tableDisplayed ####
   ## Returns true if table has been created
   output$tableDisplayed <- eventReactive(input$update, {
     return(!is.null(plotTable()))
@@ -1259,6 +1300,7 @@ server <- function(input, output, session) {
   outputOptions(output, 'tableDisplayed', suspendWhenHidden = FALSE)
 
   
+  #### Render Plot ####
   ## Displays plot of responses
   output$plot <- renderPlot({
     # Save created plot to reactive values
@@ -1272,6 +1314,7 @@ server <- function(input, output, session) {
   })
   
   
+  #### Render Table ####
   ## Displays table of responses
   output$table <- renderDataTable({
     # Save created table to reactive values
@@ -1285,6 +1328,7 @@ server <- function(input, output, session) {
   })
   
   
+  #### Render Aesthetic Customization UI's ####
   ## Renders UI's based on whether Uniform or Individual aesthetics is selected in the 'aesthetics' customization tab
   output$aesUIs <- renderUI({
     ## Individual aesthetics
@@ -1418,7 +1462,10 @@ server <- function(input, output, session) {
   })
   
   
-  ## Downloads the plot to user's computer #### NOT WORKING ####
+  
+  
+  ## -- NOT WORKING --
+  ## Downloads the plot to user's computer 
   # output$downloadPlot <- downloadHandler(
   #   filename = function() {
   #     # Name of plot and extension combined
@@ -1428,6 +1475,8 @@ server <- function(input, output, session) {
   #     # Saves plot to user's computer
   #     ggsave(file, plot = rv$plot, width = input$plotWidth, height = input$plotHeight, units = input$units)
   #   })
+  
+  
 }
 shinyApp(ui = ui, server = server)
 
