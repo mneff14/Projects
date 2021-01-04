@@ -20,7 +20,7 @@ ui <- fluidPage(
   ##### INPUT FUNCTIONS #####
   
   # Title
-  h1(em("Survey Response Categorizer (test)")),
+  h1(em("Survey Response Categorizer")),
 
   #### Sidebar Panel ####
   sidebarPanel(
