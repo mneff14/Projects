@@ -1,35 +1,26 @@
-# RESPONSE CATEGORIZER
+### RESPONSE CATEGORIZER APP
+### - Michael Neff - 
+###
+### Categorizes uploaded responses into specified categories based on specified key words
 
-# Categorizes uploaded responses into specified categories based on specified key words
 
-library(shiny)
-library(tibble)
-library(readr)
-library(haven)
-library(readxl)
-library(dplyr)
-library(ggplot2)
-library(ggthemes)
-library(tidyverse)
-library(rlist)
-library(stringr)
-library(colourpicker)
-library(stringi)
+
+#### Libraries ####
+
+pacman::p_load(shiny,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,
+               stringr,colourpicker,stringi)
 
 
 
 
 ##### ----- UI ----- #####
 
-
-
-
 ui <- fluidPage(
 
   ##### INPUT FUNCTIONS #####
   
   # Title
-  h1(em("Survey Response Categorizer")),
+  h1(em("Survey Response Categorizer (test)")),
 
   #### Sidebar Panel ####
   sidebarPanel(
@@ -524,9 +515,6 @@ ui <- fluidPage(
 
 
 ##### ----- SERVER ----- #####
-
-
-
 
 server <- function(input, output, session) {
   
