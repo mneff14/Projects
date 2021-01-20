@@ -7,8 +7,8 @@
 
 #### Libraries ####
 
-pacman::p_load(shiny,shinyBS,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,
-               stringr,colourpicker,stringi)
+pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
+               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm)
 
 
 
@@ -18,6 +18,9 @@ pacman::p_load(shiny,shinyBS,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,ti
 ui <- fluidPage(
 
   ##### INPUT FUNCTIONS #####
+  
+  # Add Busy Bar
+  use_busy_bar(color = "#337ab7", height = "5px"),
   
   # Title
   h1(em("Survey Response Categorizer")),
@@ -72,7 +75,8 @@ ui <- fluidPage(
         
         #### * * Multiple Categories Checkbox ####
         # Option to signify whether to have one or multiple categories per response
-        checkboxInput("multCtgsPerResponse", label = "Multiple Categories per Response", value = TRUE),
+        checkboxInput("multCtgsPerResponse", 
+                      label = "Multiple Categories per Response", value = TRUE),
         
         #### * * Category Placeholder ####
         # To hold all of the categories and their rules
@@ -96,9 +100,6 @@ ui <- fluidPage(
     # Reference: https://ebailey78.github.io/shinyBS/docs/Modals.html
     bsModal("topic_finder", "Topic Finder", 
             trigger = "find_categories", size = "l", # Large
-            
-    bsModal("topic_finder", "Topic Finder", 
-            trigger = "find_categories", size = "l", # Large
             #### * * TF Buttons ####
             fluidRow(
               column(width = 2,
@@ -113,7 +114,7 @@ ui <- fluidPage(
               ),
               # Show/Hide Convert Button
               conditionalPanel(
-                condition = "rv.tf_show_convert_button",
+                condition = "output.tf_show_convert_button",
                 column(width = 10,
                        # Convert Button
                        actionButton("tf_convert_topics", "Convert Topics")
@@ -142,7 +143,7 @@ ui <- fluidPage(
             
             #### * * TF Results Tabs ####
             conditionalPanel(
-              condition = "input.tf_go > 0",
+              condition = "output.topicsFound",
               tabsetPanel(id = "tf_results", 
                           tabPanel("Topics",
                                    # Placeholder for Topic UIs
@@ -162,31 +163,6 @@ ui <- fluidPage(
                                    )
                           )
               )            
-                       numericInput("tf_num_terms", "Number of Topic Terms to Show",
-                                    value = 10, min = 1, max = 25)
-                )
-              )
-            ),
-            br(),
-            #### * * TF Results Tabs ####
-            tabsetPanel("tf_results", 
-                        tabPanel("Topics",
-                                 # Placeholder for Topic UIs
-                                 tags$div(id = "tf_topics")
-                        ),
-                        tabPanel("Details",
-                                 # Details Tabs
-                                 tabsetPanel("tf_details",
-                                             tabPanel("View Graph",
-                                                      # Output for Details Plot
-                                                      plotOutput("tf_details_plot")
-                                             ),
-                                             tabPanel("View Table",
-                                                      # Output for Details Data Table
-                                                      dataTableOutput("tf_details_tbl")
-                                             )
-                                 )
-                        )
             )
     ), 
     
@@ -1180,6 +1156,37 @@ server <- function(input, output, session) {
   
   
   
+  #### find_topics() ####
+  ## Uses LDA models to automatically find topics in the responses
+  find_topics <- reactive({
+    
+    ### Read in the Data
+    
+    # Catch any errors
+    df <- try(
+      expr = read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx"),
+      silent = TRUE
+    ) 
+    # Make sure data was read in correctly
+    if (class(df) == "try-error") {
+      return(NULL)
+    } else {
+      df <- data.frame(df)
+    }
+    
+    
+    ### Pre-Process the Data
+    
+    
+    
+    ### Return the results (either NULL or a data frame)
+    return(df)
+    
+  })
+  
+  
+  
+  
   #### updatePushed_plotGG() ####
   ## Calls and returns return value of plotGG when "Update" button is pushed
   updatePushed_plotGG <- eventReactive(input$update, {
@@ -1397,6 +1404,33 @@ server <- function(input, output, session) {
     return(!is.null(plotTable()))
   })
   outputOptions(output, 'tableDisplayed', suspendWhenHidden = FALSE)
+  
+  
+  #### Event Reactive -- topicsFound ####
+  ## Calls find_topics() when the Topic Finder "Go!" button is pushed.
+  ## Returns TRUE if topics were found
+  output$topicsFound <- eventReactive(input$tf_go, {
+    
+    ### Find the topics
+    results <- find_topics()
+    
+    ### Make sure topics were found and proper results are saved
+    if (is.null(results)) {
+      # Save NULL to reactive values and return FALSE
+      rv[["topics"]] <- NULL
+      rv[["num_topics"]] <- 0
+      return(FALSE)
+      
+    } else {
+      # Save results to reactive values and return TRUE
+      rv[["topics"]] <- results
+      rv[["num_topics"]] <- nrow(results)
+      return(TRUE)
+    }
+  })
+  outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
+  
+  
 
   
   #### Render Plot ####
