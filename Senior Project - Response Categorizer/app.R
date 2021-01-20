@@ -7,7 +7,7 @@
 
 #### Libraries ####
 
-pacman::p_load(shiny,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,
+pacman::p_load(shiny,shinyBS,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,
                stringr,colourpicker,stringi)
 
 
@@ -25,6 +25,10 @@ ui <- fluidPage(
   #### Sidebar Panel ####
   sidebarPanel(
     
+    #### * Categorize for Me Button ####
+    actionButton("find_categories", "Find Categories for Me"),
+    
+    
     #### * Browse File Button ####
     # Browse for responses and saves the datapath  
     fileInput("responses", "Import Responses", 
@@ -41,9 +45,17 @@ ui <- fluidPage(
     conditionalPanel(
       condition = "output.fileValid",
       
-      #### * * Add Category Button ####
-      actionButton("ctgAdd", "Add Category"),
-      
+      fluidRow(
+        column(width = 6,
+               #### * * Add Category Button ####
+               actionButton("ctgAdd", "Add Category")
+        ),
+        column(width = 6
+               # #### * * Categorize for Me Button
+               # actionButton("find_categories", "Find Categories for Me")
+        )
+      ),
+    
       #### * * Add Category Conditional Panel ####
       conditionalPanel(
         condition = "input.ctgAdd",
@@ -79,6 +91,63 @@ ui <- fluidPage(
  
   #### Main Panel ####
   mainPanel(
+    
+    #### * Topic Finder Pop-up Window ####
+    bsModal("topic_finder", "Topic Finder", 
+            trigger = "find_categories", size = "l", # Large
+            #### * * TF Buttons ####
+            fluidRow(
+              column(width = 2,
+                     # Go Button
+                     actionButton("tf_go", "Go")
+              ),
+              # Show/Hide Convert Button
+              conditionalPanel(
+                condition = "rv.tf_show_convert_button",
+                column(width = 10,
+                       # Convert Button
+                       actionButton("tf_convert_topics", "Convert Topics")
+                )
+              )
+            ),
+            #### * * TF Initial Variables ####
+            wellPanel(
+              fluidRow(
+                column(width = 6,
+                       # Number of Topics to Find
+                       numericInput("tf_num_topics", "Number of Topics to Find",
+                                    value = 2, min = 2, max = 15)
+                ),
+                column(width = 6,
+                       # Number of Terms to Show
+                       numericInput("tf_num_terms", "Number of Topic Terms to Show",
+                                    value = 10, min = 1, max = 25)
+                )
+              )
+            ),
+            br(),
+            #### * * TF Results Tabs ####
+            tabsetPanel("tf_results", 
+                        tabPanel("Topics",
+                                 # Placeholder for Topic UIs
+                                 tags$div(id = "tf_topics")
+                        ),
+                        tabPanel("Details",
+                                 # Details Tabs
+                                 tabsetPanel("tf_details",
+                                             tabPanel("View Graph",
+                                                      # Output for Details Plot
+                                                      plotOutput("tf_details_plot")
+                                             ),
+                                             tabPanel("View Table",
+                                                      # Output for Details Data Table
+                                                      dataTableOutput("tf_details_tbl")
+                                             )
+                                 )
+                        )
+            )
+    ), 
+    
     br(),
     
     #### * Update Conditional Panel ####
@@ -520,7 +589,7 @@ server <- function(input, output, session) {
   
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
-  rv <- reactiveValues()
+  rv <- reactiveValues(tf_show_convert_button = FALSE)
 
   
   
