@@ -97,6 +97,8 @@ ui <- fluidPage(
     bsModal("topic_finder", "Topic Finder", 
             trigger = "find_categories", size = "l", # Large
             
+    bsModal("topic_finder", "Topic Finder", 
+            trigger = "find_categories", size = "l", # Large
             #### * * TF Buttons ####
             fluidRow(
               column(width = 2,
@@ -107,13 +109,17 @@ ui <- fluidPage(
               # Show/Hide Convert Button
               conditionalPanel(
                 condition = "output.tf_show_convert_button",
+                     actionButton("tf_go", "Go")
+              ),
+              # Show/Hide Convert Button
+              conditionalPanel(
+                condition = "rv.tf_show_convert_button",
                 column(width = 10,
                        # Convert Button
                        actionButton("tf_convert_topics", "Convert Topics")
                 )
               )
             ),
-            
             #### * * TF Initial Variables ####
             wellPanel(
               fluidRow(
@@ -156,6 +162,31 @@ ui <- fluidPage(
                                    )
                           )
               )            
+                       numericInput("tf_num_terms", "Number of Topic Terms to Show",
+                                    value = 10, min = 1, max = 25)
+                )
+              )
+            ),
+            br(),
+            #### * * TF Results Tabs ####
+            tabsetPanel("tf_results", 
+                        tabPanel("Topics",
+                                 # Placeholder for Topic UIs
+                                 tags$div(id = "tf_topics")
+                        ),
+                        tabPanel("Details",
+                                 # Details Tabs
+                                 tabsetPanel("tf_details",
+                                             tabPanel("View Graph",
+                                                      # Output for Details Plot
+                                                      plotOutput("tf_details_plot")
+                                             ),
+                                             tabPanel("View Table",
+                                                      # Output for Details Data Table
+                                                      dataTableOutput("tf_details_tbl")
+                                             )
+                                 )
+                        )
             )
     ), 
     
@@ -600,7 +631,7 @@ server <- function(input, output, session) {
   
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
-  rv <- reactiveValues()
+  rv <- reactiveValues(tf_show_convert_button = FALSE)
 
   
   
