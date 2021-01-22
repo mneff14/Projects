@@ -8,7 +8,7 @@
 #### Libraries ####
 
 pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
-               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda)
+               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda,slam)
 
 
 
@@ -137,7 +137,7 @@ ui <- fluidPage(
               ),
               # Words not to Include
               textInput("tf_words_not_include", "Words Not to Include",
-                        value = "for, as, when")
+                        value = "for, as, when, also")
             ),
             br(),
             
@@ -782,7 +782,6 @@ server <- function(input, output, session) {
                 split_response <- FALSE
                 match_found <- FALSE
                 
-                print(current_response)
                 ## Will skip response if only one ctg per response is specified AND response has been assigned a ctg 
                 if (multiple_categories_per_response | !r_has_match) {
                   ## Split Response into individual words if specified by Search_By
@@ -1179,23 +1178,87 @@ server <- function(input, output, session) {
     corpus <- corpus(df, text_field = "Responses")
     
     # Create a Document Term (Feature) Matrix from the corpus
-    #   (Each response becomes its own document split into words. 
-    #   Common stop words and other trimming occurs automatically)
-    dtm <- dfm(corpus) %>% 
+    #   (Each response becomes its own document split into words.) 
+    dtm <- dfm(corpus, stem = TRUE, 
+               remove = stopwords("english"),
+               remove_punct = TRUE) %>% 
       dfm_trim(min_termfreq = 3) %>% # Remove rare terms
       dfm_remove(words_to_remove) %>% # Remove words specified by user
       convert(to = "tm") # Convert back to 'tm' library object for fitting
     
+    # Remove very frequent and in-frequent terms
+    #   (Will calculate the mean term frequency-inverse document frequency (tg-idf)
+    #    of each term across documents and keep terms with a tf-idf of at least 0.1,
+    #    which is close to the median.
+    #    Then the documents will be filtered by the tf-idf to ensure steady frequency)
+    # Reference: p.12 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf    
+    term_tfidf <-
+      tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) *
+      log2(nDocs(dtm)/col_sums(dtm > 0))
+    dtm <- dtm[,term_tfidf >= 0.1]
+    dtm <- dtm[row_sums(dtm) > 0,]
+    
     
     ### Fit the models
-    ### Reference: https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+    ### Reference: p.13 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+    
+    # Initial parameters
+    k <- input$tf_num_topics
+    SEED <- as.integer(Sys.time())
+    
+    # Fit several models for comparison
+    #   Both models use a VEM procedure for calculating the Maximum Likelihood
+    #   (This is a Variable version of the EM algorithm. It iterates between
+    #    an (E)xpectation step and a (M)aximization step to calculate parameters
+    #    that the EM algorithm cannot.) 
+    #   See section 2.2 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf 
+    models <- list(
+      # Latent Dirichlet Allocation (LDA) Model (see p.1)
+      #   Topics are assumed to be uncorrelated
+      #   Can use the VEM or Gibbs algorithm
+      LDA = LDA(dtm, k = k, method = "VEM", 
+                control = list(seed = SEED)),
+      # Correlated Topic Model (CTM) (see p.2)
+      #   Topics are assumed to be correlated
+      #   Only uses the VEM algorithm
+      #   Set a larger tolerance for the relative change in the likelihood
+      CTM = CTM(dtm, k = k,
+                control = list(seed = SEED,
+                               var = list(tol = 10^-4), 
+                               em  = list(tol = 10^-3)))
+    )
     
     
+    ### Select the "best" model
+    ### Reference: p.14 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+    
+    # Calculate the mean entropy for each model.
+    #   This measures how much the model's topics are distributed across the documents.
+    #   The lower the entropy, the more precise and useful the predicted topics are.
+    entropies <- sapply(models, function(x)
+      mean(apply(posterior(x)$topics, 1, function(z) - sum(z * log(z)))))
+    
+    # Save the "best" model (the one with the lowest mean entropy)
+    # Reference: https://stackoverflow.com/questions/21422188/how-to-get-name-from-a-value-in-an-r-vector-with-names
+    best_model <- models[[names(entropies)[entropies == min(entropies)]]]
     
     
-    ### Return the results (either NULL or a data frame)
-    return(NULL)
+    ### Get Final Results
     
+    # Retrieve the best model's top terms for each topic
+    top_terms <- as.data.frame( terms(best_model, 25) ) 
+    
+    # Retrieve and clean the best model's most likely topic for each response
+    response_topics <- as.data.frame( topics(best_model) ) %>% 
+      rownames_to_column("Response") %>% 
+      rename(Topic = 'topics(best_model)')
+    response_topics$Response <- as.integer(str_remove(response_topics$Response, "text"))
+    
+    # Add original response text to the response topics
+    response_topics$Text <- unlist( sapply(response_topics$Response, function(r) df[r,1]) )
+    
+    # Return the results in a vector
+    return( c(top_terms, response_topics) )
   })
   
   
@@ -1215,7 +1278,7 @@ server <- function(input, output, session) {
     # Plots the table of the data
     return(plotTable())
   })
-  
+             
   
   
   
@@ -1425,20 +1488,41 @@ server <- function(input, output, session) {
   ## Returns TRUE if topics were found
   output$topicsFound <- eventReactive(input$tf_go, {
     
-    ### Find the topics
+    # Call function to find topics
     results <- find_topics()
+    n <- input$tf_num_topics # The number of topics to find
     
-    ### Make sure topics were found and proper results are saved
+    # Make sure topics were found and proper results are saved
     if (is.null(results)) {
       # Save NULL to reactive values and return FALSE
       rv[["topics"]] <- NULL
+      rv[["response_topics"]] <- NULL
       rv[["num_topics"]] <- 0
       return(FALSE)
       
     } else {
       # Save results to reactive values and return TRUE
-      rv[["topics"]] <- results
-      rv[["num_topics"]] <- nrow(results)
+      rv[["topics"]] <- results[1:n] # The first n are the topics
+      rv[["response_topics"]] <- results[n+1:length(results)] # The rest are response topics
+      rv[["num_topics"]] <- n
+      
+      #### * Insert Topic UIs ####
+      for (t in 1:n) {
+        # Initial Variables
+        topic <- rv$topics[t]
+        topic_id <- paste0("topic_", t)
+        topic_name <- names(topic)
+        topic_terms <- str_c(unlist(topic[1])[1:input$tf_num_terms], collapse = " | ")
+        
+        # Insert the Topic UIs
+        insertUI("#tf_topics", "beforeBegin",
+                 wellPanel(
+                   
+                 )
+        )
+      }
+      
+      
       return(TRUE)
     }
   })
