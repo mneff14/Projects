@@ -8,7 +8,7 @@
 #### Libraries ####
 
 pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
-               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda)
+               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda,slam)
 
 
 
@@ -20,7 +20,7 @@ ui <- fluidPage(
   ##### INPUT FUNCTIONS #####
   
   # Add Busy Bar
-  use_busy_bar(color = "#337ab7", height = "5px"),
+  add_busy_bar(color = "#337ab7", height = "8px"),
   
   # Title
   h1(em("Survey Response Categorizer")),
@@ -100,6 +100,11 @@ ui <- fluidPage(
     # Reference: https://ebailey78.github.io/shinyBS/docs/Modals.html
     bsModal("topic_finder", "Topic Finder", 
             trigger = "find_categories", size = "l", # Large
+            
+            # Information Text
+            h6('The "Topic Finder" automatically finds topics (categories) for 
+               your responses using LDA and CTM machine learning models.'),
+            
             #### * * TF Buttons ####
             fluidRow(
               column(width = 2,
@@ -107,37 +112,25 @@ ui <- fluidPage(
                      actionButton("tf_go", "Go!",
                                   style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
               ),
-              # Show/Hide Convert Button
-              conditionalPanel(
-                condition = "output.tf_show_convert_button",
-                     actionButton("tf_go", "Go")
-              ),
-              # Show/Hide Convert Button
-              conditionalPanel(
-                condition = "output.tf_show_convert_button",
-                column(width = 10,
+              column(width = 10,
+                     # Show/Hide Convert Button
+                     conditionalPanel(
+                       condition = "output.tf_show_convert_button",
                        # Convert Button
                        actionButton("tf_convert_topics", "Convert Topics")
-                )
+                     )
               )
             ),
             #### * * TF Initial Variables ####
             wellPanel(
-              fluidRow(
-                column(width = 6,
-                       # Number of Topics to Find
-                       numericInput("tf_num_topics", "Number of Topics to Find",
-                                    value = 2, min = 2, max = 15)
-                ),
-                column(width = 6,
-                       # Number of Terms to Show
-                       numericInput("tf_num_terms", "Number of Top Terms to Show",
-                                    value = 10, min = 1, max = 25)
-                )
-              ),
+              
+              # Number of Topics to Find
+              numericInput("tf_num_topics", "Number of Topics to Find",
+                           value = 2, min = 2, max = 15),
+
               # Words not to Include
               textInput("tf_words_not_include", "Words Not to Include",
-                        value = "for, as, when")
+                        value = "for, as, when, you, also")
             ),
             br(),
             
@@ -607,7 +600,9 @@ server <- function(input, output, session) {
   
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
-  rv <- reactiveValues(tf_show_convert_button = FALSE)
+  rv <- reactiveValues(tf_show_convert_button = FALSE,
+                       num_topics = 0,
+                       tf_check_topics = FALSE)
 
   
   
@@ -782,7 +777,6 @@ server <- function(input, output, session) {
                 split_response <- FALSE
                 match_found <- FALSE
                 
-                print(current_response)
                 ## Will skip response if only one ctg per response is specified AND response has been assigned a ctg 
                 if (multiple_categories_per_response | !r_has_match) {
                   ## Split Response into individual words if specified by Search_By
@@ -1161,41 +1155,132 @@ server <- function(input, output, session) {
   ## Reference: 
   find_topics <- reactive({
     
-    ### Read in the Data
-    
-    df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
-    
-    
-    ### Pre-Process the Data
-    ### Reference: https://stackoverflow.com/questions/55832844/remove-words-from-a-dtm
-    
-    # Retrieve the words not to be included in the models
-    words_to_remove <- input$tf_words_not_include %>% 
-      str_split(pattern = ",") %>% 
-      unlist() %>% 
-      str_trim(side = "both")
-    
-    # Convert column to Corpus (collection of "documents")
-    corpus <- corpus(df, text_field = "Responses")
-    
-    # Create a Document Term (Feature) Matrix from the corpus
-    #   (Each response becomes its own document split into words. 
-    #   Common stop words and other trimming occurs automatically)
-    dtm <- dfm(corpus) %>% 
-      dfm_trim(min_termfreq = 3) %>% # Remove rare terms
-      dfm_remove(words_to_remove) %>% # Remove words specified by user
-      convert(to = "tm") # Convert back to 'tm' library object for fitting
-    
-    
-    ### Fit the models
-    ### Reference: https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
-    
-    
-    
-    
-    ### Return the results (either NULL or a data frame)
-    return(NULL)
-    
+    # Start the progress bar
+    # Reference: https://shiny.rstudio.com/articles/progress.html
+    withProgress(message = "Finding Topics", value = 0, {
+      
+      ### Initialize Progress Bar
+      num_steps <- 7
+      incr_val <- 1/num_steps # How far to increment the progress bar at each step
+      incProgress(incr_val, detail = "Reading in Data") # Increments the progress bar
+      
+      
+      ### Read in the Data
+      
+      df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
+      
+      # Increment Progress Bar
+      incProgress(amount = incr_val, detail = "Pre-processing the data")
+      
+      
+      ### Pre-Process the Data
+      ### Reference: https://stackoverflow.com/questions/55832844/remove-words-from-a-dtm
+      
+      # Retrieve the words not to be included in the models
+      words_to_remove <- input$tf_words_not_include %>% 
+        str_split(pattern = ",") %>% 
+        unlist() %>% 
+        str_trim(side = "both")
+      
+      # Convert column to Corpus (collection of "documents")
+      corpus <- corpus(df, text_field = "Responses")
+      
+      # Create a Document Term (Feature) Matrix from the corpus
+      #   (Each response becomes its own document split into words.) 
+      dtm <- dfm(corpus, stem = TRUE, 
+                 remove = stopwords("english"),
+                 remove_punct = TRUE) %>% 
+        dfm_trim(min_termfreq = 3) %>% # Remove rare terms
+        dfm_remove(words_to_remove) %>% # Remove words specified by user
+        convert(to = "tm") # Convert back to 'tm' library object for fitting
+      
+      # Remove very frequent and in-frequent terms
+      #   (Will calculate the mean term frequency-inverse document frequency (tg-idf)
+      #    of each term across documents and keep terms with a tf-idf of at least 0.1,
+      #    which is close to the median.
+      #    Then the documents will be filtered by the tf-idf to ensure steady frequency)
+      # Reference: p.12 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf    
+      term_tfidf <-
+        tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) *
+        log2(nDocs(dtm)/col_sums(dtm > 0))
+      dtm <- dtm[,term_tfidf >= 0.1]
+      dtm <- dtm[row_sums(dtm) > 0,]
+      
+      # Increment Progress Bar
+      incProgress(amount = incr_val, detail = "Fitting LDA Model")
+      
+      
+      ### Fit the models
+      ### Reference: p.13 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+      
+      # Initial parameters
+      k <- input$tf_num_topics
+      SEED <- as.integer(Sys.time())
+      
+      # Fit several models for comparison
+      #   Both models use a VEM procedure for calculating the Maximum Likelihood
+      #   (This is a Variable version of the EM algorithm. It iterates between
+      #    an (E)xpectation step and a (M)aximization step to calculate parameters
+      #    that the EM algorithm cannot.) 
+      #   See section 2.2 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf 
+      models <- list()
+      
+      # Latent Dirichlet Allocation (LDA) Model (see p.1)
+      #   Topics are assumed to be uncorrelated
+      #   Can use the VEM or Gibbs algorithm
+      models[["LDA"]] <- LDA(dtm, k = k, method = "VEM",
+                             control = list(seed = SEED))
+      # Increment Progress Bar
+      incProgress(amount = incr_val, detail = "Fitting CTM Model")
+      
+      # Correlated Topic Model (CTM) (see p.2)
+      #   Topics are assumed to be correlated
+      #   Only uses the VEM algorithm
+      #   Set a larger tolerance for the relative change in the likelihood
+      models[["CTM"]] <- CTM(dtm, k = k,
+                             control = list(seed = SEED,
+                                            var = list(tol = 10^-4), 
+                                            em  = list(tol = 10^-3)))
+      # Increment Progress Bar
+      incProgress(amount = incr_val, detail = "Selecting 'Best' Model")
+      
+      
+      ### Select the "best" model
+      ### Reference: p.14 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+      
+      # Calculate the mean entropy for each model.
+      #   This measures how much the model's topics are distributed across the documents.
+      #   The lower the entropy, the more precise and useful the predicted topics are.
+      entropies <- sapply(models, function(x)
+        mean(apply(posterior(x)$topics, 1, function(z) - sum(z * log(z)))))
+      
+      # Save the "best" model (the one with the lowest mean entropy)
+      # Reference: https://stackoverflow.com/questions/21422188/how-to-get-name-from-a-value-in-an-r-vector-with-names
+      best_model <- models[[names(entropies)[entropies == min(entropies)]]]
+      
+      # Increment Progress Bar
+      incProgress(amount = incr_val, detail = "Retrieving Final Results")
+      
+      
+      ### Get Final Results
+      
+      # Retrieve the best model's top terms for each topic
+      top_terms <- as.data.frame( terms(best_model, 25) ) 
+      
+      # Retrieve and clean the best model's most likely topic for each response
+      response_topics <- as.data.frame( topics(best_model) ) %>% 
+        rownames_to_column("Response") %>% 
+        rename(Topic = 'topics(best_model)')
+      response_topics$Response <- as.integer(str_remove(response_topics$Response, "text"))
+      
+      # Add original response text to the response topics
+      response_topics$Text <- unlist( sapply(response_topics$Response, function(r) df[r,1]) )
+      
+      # Increment Progress Bar
+      incProgress(amount = incr_val, message = "Done", detail = "")
+      
+      # Return the results in a vector
+      return( c(top_terms, response_topics) )    })
   })
   
   
@@ -1215,7 +1300,7 @@ server <- function(input, output, session) {
     # Plots the table of the data
     return(plotTable())
   })
-  
+             
   
   
   
@@ -1425,26 +1510,151 @@ server <- function(input, output, session) {
   ## Returns TRUE if topics were found
   output$topicsFound <- eventReactive(input$tf_go, {
     
-    ### Find the topics
+    # Call function to find topics
     results <- find_topics()
+    n <- input$tf_num_topics # The number of topics to find
     
-    ### Make sure topics were found and proper results are saved
+    # Make sure topics were found and proper results are saved
     if (is.null(results)) {
       # Save NULL to reactive values and return FALSE
       rv[["topics"]] <- NULL
+      rv[["response_topics"]] <- NULL
       rv[["num_topics"]] <- 0
       return(FALSE)
       
     } else {
       # Save results to reactive values and return TRUE
-      rv[["topics"]] <- results
-      rv[["num_topics"]] <- nrow(results)
+      rv[["topics"]] <- results[1:n] # The first n are the topics
+      rv[["response_topics"]] <- results[n+1:length(results)] # The rest are response topics
+      rv[["num_topics"]] <- n
+      
+      #### * Update Topic UIs ####
+      lapply(1:n, function(t) {
+        # Initial Variables
+        topic <- rv$topics[t]
+        topic_id <- paste0("topic_", t)
+        topic_tag_id <- paste0("topic_tag_", t)
+        topic_name <- names(topic)
+        topic_terms <- str_c(unlist(topic[1])[1:10], collapse = " | ")
+        topic_checkbox_id <- paste0("topic_checkbox_", t)
+        topic_title_id <- paste0("topic_title_", t)
+        topic_terms_tag_id <- paste0("topic_terms_tag_", t)
+        topic_terms_id <- paste0("topic_terms_", t)
+        topic_num_terms_id <- paste0("topic_num_terms_", t)
+        
+        # * * Remove Existing Topic UIs #### 
+        removeUI(paste0("#",topic_tag_id))
+        
+        # * * Insert New Topic UIs ####
+        insertUI("#tf_topics", "beforeBegin",
+                 tags$div(
+                   id = topic_tag_id,
+                   wellPanel(
+                     fluidRow(
+                       column(width = 1,
+                              # Convert to Category Checkbox
+                              checkboxInput(topic_checkbox_id, label = "")
+                       ),
+                       column(width = 3,
+                              # Topic Title Textbox
+                              textInput(topic_title_id, label = "", 
+                                        value = topic_name)
+                       ),
+                       column(width = 6,
+                              # Terms Text Placeholder
+                              # Need this here so user can change the number of terms to show
+                              # without having to run the model again
+                              tags$div(id = topic_terms_tag_id)
+                       ),
+                       column(width = 2,
+                              # Number of Terms to Show
+                              numericInput(topic_num_terms_id, "Terms",
+                                           value = 10, min = 1, max = 25)
+                       )
+                     )
+                   )
+                 )
+        )
+        
+        # Insert the Topic Terms
+        insertUI(paste0("#", topic_terms_tag_id), 
+                 "beforeBegin",
+                 tags$div(
+                   id = topic_terms_id,
+                   h6(topic_terms)
+                 )
+        )
+        
+        # * * Observe Event -- Update Number of Terms Showing ####
+        # Updates the number of terms to show whenever the topic's input changes
+        observeEvent(input[[topic_num_terms_id]], {
+          
+          # Remove any existing terms
+          removeUI(paste0("#", topic_terms_id))
+          
+          # Retrieve and format the new number of terms
+          new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
+                                   collapse = " | ")
+          
+          # Insert a new placeholder for the new terms
+          insertUI(paste0("#", topic_terms_tag_id), 
+                   "beforeBegin",
+                   tags$div(
+                     id = topic_terms_id,
+                     h6(new_topic_terms)
+                   )
+          )
+        })
+        
+        # * * Observe Event -- Check Topics ####
+        # Sends values to determine when the Convert button shows
+        observeEvent(input[[topic_checkbox_id]], {
+          
+          if (input[[topic_checkbox_id]] == FALSE) {
+            # If checked, show the Convert button 
+            rv$tf_show_convert_button <- TRUE
+            rv$tf_check_topics <- FALSE
+          } else {
+            # If unchecked, will trigger an eventReactive to show Convert button
+            # if any other topic is checked
+            rv$tf_show_convert_button <- FALSE
+            rv$tf_check_topics <- TRUE          
+          }
+        })
+      })
+      
       return(TRUE)
     }
   })
   outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
   
   
+  #### Event Reactive -- tf_show_convert_button ####
+  ## Will show Convert button unless all topics' checkboxes are unchecked
+  observeEvent(rv$tf_show_convert_button, ignoreInit = TRUE, {
+    
+    # Hide Convert button if all topics are unchecked
+    if (rv$tf_show_convert_button == FALSE & rv$tf_check_topics == TRUE) {
+      
+      # Initial Variables
+      all_unchecked <- FALSE
+      checked <- list()
+      
+      # Save whether each topic's checkbox is checked
+      lapply(1:rv$num_topics, function(i) {
+        checkbox_id <- paste0("topic_checkbox_", i)
+        checked[[checkbox_id]] <- input[[checkbox_id]]
+      }) 
+      
+      # Update reactive values
+      rv$tf_show_convert_button <- all(checked) # Return FALSE only if all in list are FALSE
+      rv$tf_check_topics <- FALSE
+    } 
+    else {
+      rv$tf_show_convert_button <- TRUE
+      rv$tf_check_topics <- FALSE
+    }
+  })
 
   
   #### Render Plot ####
