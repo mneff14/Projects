@@ -8,7 +8,7 @@
 #### Libraries ####
 
 pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
-               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm)
+               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda)
 
 
 
@@ -1158,29 +1158,43 @@ server <- function(input, output, session) {
   
   #### find_topics() ####
   ## Uses LDA models to automatically find topics in the responses
+  ## Reference: 
   find_topics <- reactive({
     
     ### Read in the Data
     
-    # Catch any errors
-    df <- try(
-      expr = read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx"),
-      silent = TRUE
-    ) 
-    # Make sure data was read in correctly
-    if (class(df) == "try-error") {
-      return(NULL)
-    } else {
-      df <- data.frame(df)
-    }
+    df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
     
     
     ### Pre-Process the Data
+    ### Reference: https://stackoverflow.com/questions/55832844/remove-words-from-a-dtm
+    
+    # Retrieve the words not to be included in the models
+    words_to_remove <- input$tf_words_not_include %>% 
+      str_split(pattern = ",") %>% 
+      unlist() %>% 
+      str_trim(side = "both")
+    
+    # Convert column to Corpus (collection of "documents")
+    corpus <- corpus(df, text_field = "Responses")
+    
+    # Create a Document Term (Feature) Matrix from the corpus
+    #   (Each response becomes its own document split into words. 
+    #   Common stop words and other trimming occurs automatically)
+    dtm <- dfm(corpus) %>% 
+      dfm_trim(min_termfreq = 3) %>% # Remove rare terms
+      dfm_remove(words_to_remove) %>% # Remove words specified by user
+      convert(to = "tm") # Convert back to 'tm' library object for fitting
+    
+    
+    ### Fit the models
+    ### Reference: https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+    
     
     
     
     ### Return the results (either NULL or a data frame)
-    return(df)
+    return(NULL)
     
   })
   
