@@ -7,7 +7,7 @@
 
 #### Libraries ####
 
-pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
+pacman::p_load(shiny,shinyjs,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
                tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda,slam)
 
 
@@ -18,6 +18,8 @@ pacman::p_load(shiny,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,g
 ui <- fluidPage(
 
   ##### INPUT FUNCTIONS #####
+  
+  useShinyjs(), # Set up shinyjs for clicking buttons with code
   
   # Add Busy Bar
   add_busy_bar(color = "#337ab7", height = "8px"),
@@ -113,8 +115,12 @@ ui <- fluidPage(
                                   style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
               ),
               column(width = 10,
-                     # Convert Button
-                     actionButton("tf_convert_topics", "Convert Topics")
+                     conditionalPanel(
+                       condition = "output.topicsFound",
+                       # Convert Topics Button
+                       actionButton("tf_convert_topics", "Convert Topics",
+                                    style = "color: #fff; background-color: #17c217; border-color: #15ad15")
+                     )
               )
             ),
             #### * * TF Initial Variables ####
@@ -130,9 +136,11 @@ ui <- fluidPage(
             ),
             br(),
             
-            #### * * TF Results Tabs ####
+            #### * * TF Results UIs ####
             conditionalPanel(
               condition = "output.topicsFound",
+              
+              # Results Tabset Panel
               tabsetPanel(id = "tf_results", 
                           tabPanel("Topics",
                                    # Placeholder for Topic UIs
@@ -143,11 +151,14 @@ ui <- fluidPage(
                                    navbarPage(id = "tf_details", title = "",
                                                tabPanel("View Graph",
                                                         # Output for Details Plot
-                                                        plotOutput("tf_details_plot")
+                                                        plotOutput("tf_details_plot", height = "500px")
                                                ),
                                                tabPanel("View Table",
                                                         # Output for Details Data Table
-                                                        dataTableOutput("tf_details_tbl")
+                                                        dataTableOutput("tf_details_tbl"),
+                                                                        # Add Vertical Scroll Bar
+                                                                        # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
+                                                                        style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
                                                )
                                    )
                           )
@@ -305,7 +316,7 @@ ui <- fluidPage(
                                              conditionalPanel(
                                                condition = "!input.glAllBlank",
                                                # Color
-                                               colourInput("glAllColor", label = "Color", value = "black", 
+                                               colourpicker::colourInput("glAllColor", label = "Color", value = "black", 
                                                            allowTransparent = TRUE, returnName = TRUE),
                                                # Line Width
                                                numericInput("glAllLineWidth", label = "Line Width", 
@@ -337,7 +348,7 @@ ui <- fluidPage(
                                                conditionalPanel(
                                                  condition = "!input.glXAllBlank",
                                                  # Color
-                                                 colourInput("glXAllColor", label = "Color", value = "black", 
+                                                 colourpicker::colourInput("glXAllColor", label = "Color", value = "black", 
                                                              allowTransparent = TRUE, returnName = TRUE),
                                                  # Line Width
                                                  numericInput("glXAllLineWidth", label = "Line Width", 
@@ -366,7 +377,7 @@ ui <- fluidPage(
                                                  conditionalPanel(
                                                    condition = "!input.glMajorXBlank",
                                                    # Color
-                                                   colourInput("glMajorXColor", label = "Color", value = "black", 
+                                                   colourpicker::colourInput("glMajorXColor", label = "Color", value = "black", 
                                                                allowTransparent = TRUE, returnName = TRUE),
                                                    # Line Width
                                                    numericInput("glMajorXLineWidth", label = "Line Width", 
@@ -392,7 +403,7 @@ ui <- fluidPage(
                                                  conditionalPanel(
                                                    condition = "!input.glMinorXBlank",
                                                    # Color
-                                                   colourInput("glMinorXColor", label = "Color", value = "black", 
+                                                   colourpicker::colourInput("glMinorXColor", label = "Color", value = "black", 
                                                                allowTransparent = TRUE, returnName = TRUE),
                                                    # Line Width
                                                    numericInput("glMinorXLineWidth", label = "Line Width", 
@@ -422,7 +433,7 @@ ui <- fluidPage(
                                                conditionalPanel(
                                                  condition = "!input.glYAllBlank",
                                                  # Color
-                                                 colourInput("glYAllColor", label = "Color", value = "black", 
+                                                 colourpicker::colourInput("glYAllColor", label = "Color", value = "black", 
                                                              allowTransparent = TRUE, returnName = TRUE),
                                                  # Line Width
                                                  numericInput("glYAllLineWidth", label = "Line Width", 
@@ -450,7 +461,7 @@ ui <- fluidPage(
                                                  conditionalPanel(
                                                    condition = "!input.glMajorYBlank",
                                                    # Color
-                                                   colourInput("glMajorYColor", label = "Color", value = "black", 
+                                                   colourpicker::colourInput("glMajorYColor", label = "Color", value = "black", 
                                                                allowTransparent = TRUE, returnName = TRUE),
                                                    # Line Width
                                                    numericInput("glMajorYLineWidth", label = "Line Width", 
@@ -476,7 +487,7 @@ ui <- fluidPage(
                                                  conditionalPanel(
                                                    condition = "!input.glMinorYBlank",
                                                    # Color
-                                                   colourInput("glMinorYColor", label = "Color", value = "black", 
+                                                   colourpicker::colourInput("glMinorYColor", label = "Color", value = "black", 
                                                                allowTransparent = TRUE, returnName = TRUE),
                                                    # Line Width
                                                    numericInput("glMinorYLineWidth", label = "Line Width", 
@@ -505,10 +516,10 @@ ui <- fluidPage(
                                            conditionalPanel(
                                              condition = "!input.plotBackgroundBlank",
                                              # Fill
-                                             colourInput("plotBackgroundFill", label = "Fill", 
+                                             colourpicker::colourInput("plotBackgroundFill", label = "Fill", 
                                                          allowTransparent = TRUE, returnName = TRUE),
                                              # Color
-                                             colourInput("plotBackgroundColor", label = "Color", value = "black", 
+                                             colourpicker::colourInput("plotBackgroundColor", label = "Color", value = "black", 
                                                          allowTransparent = TRUE, returnName = TRUE),
                                              # Line Width
                                              numericInput("plotBackgroundLineWidth", label = "Line Width", 
@@ -530,10 +541,10 @@ ui <- fluidPage(
                                            conditionalPanel(
                                              condition = "!input.panelBackgroundBlank",
                                              # Fill
-                                             colourInput("PanelBackgroundFill", label = "Fill", 
+                                             colourpicker::colourInput("PanelBackgroundFill", label = "Fill", 
                                                          allowTransparent = TRUE, returnName = TRUE),
                                              # Color
-                                             colourInput("panelBackgroundColor", label = "Color", value = "black", 
+                                             colourpicker::colourInput("panelBackgroundColor", label = "Color", value = "black", 
                                                          allowTransparent = TRUE, returnName = TRUE),
                                              # Line Width
                                              numericInput("panelBackgroundLineWidth", label = "Line Width", 
@@ -555,7 +566,7 @@ ui <- fluidPage(
                                            conditionalPanel(
                                              condition = "!input.panelBorderBlank",
                                              # Color
-                                             colourInput("panelBorderColor", label = "Color", value = "black", 
+                                             colourpicker::colourInput("panelBorderColor", label = "Color", value = "black", 
                                                          allowTransparent = TRUE, returnName = TRUE),
                                              # Line Width
                                              numericInput("panelBorderLineWidth", label = "Line Width", 
@@ -597,7 +608,8 @@ server <- function(input, output, session) {
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
   rv <- reactiveValues(num_topics = 0,
-                       tf_check_topics = 0)
+                       tf_check_topics = 0,
+                       file_is_valid = FALSE)
 
   
   
@@ -1146,8 +1158,7 @@ server <- function(input, output, session) {
   
   
   #### find_topics() ####
-  ## Uses LDA models to automatically find topics in the responses
-  ## Reference: 
+  ## Uses LDA models to automatically find topics in the responses 
   find_topics <- reactive({
     
     # Start the progress bar
@@ -1309,7 +1320,8 @@ server <- function(input, output, session) {
     ctg_add_rule_button_id <- paste0(ctg_id, "_add_rule")
     remove_ctg_id <- paste0("remove_ctg", id_add)
     remove_ctg_button_id <- paste0("remove_ctg_button_", id_add)
-
+    
+    print(paste0("Orig: ", ctg_add_rule_button_id))
     
     ## Create rv variable for tracking values
     ctg_num_rules_id <- paste0(ctg_id, "_num_rules")
@@ -1333,6 +1345,7 @@ server <- function(input, output, session) {
                  column(width = 6,
                         # Button to Add Rules
                         actionButton(ctg_add_rule_button_id, "+ Rule")),
+                 
                  column(width = 6,
                         # Placeholder for the Remove Rules buttons
                         tags$div(id = paste0(ctg_id, "_remove_rule_buttons")))
@@ -1462,22 +1475,161 @@ server <- function(input, output, session) {
   })
   
   
-  # Observe Event -- Convert Topics ####
-  # Sends values to determine when the Convert button shows
-  observeEvent(rv$tf_convert_topics, {
+  #### Observe Event -- Find Topics (Go!) ####
+  ## Calls find_topics() when the Topic Finder "Go!" button is pushed.
+  ## Returns TRUE if topics were found
+  observeEvent(input$tf_go, {
     
-    # Hide the Convert button (return FALSE) only when all topic check boxes
-    # are unchecked.
-    checked <- list()
-    lapply(1:rv$num_topics, function(i) {
-      # Save whether each topic's checkbox is checked
-      checkbox_id <- paste0("topic_checkbox_", i)
-      checked[[checkbox_id]] <- input[[checkbox_id]]
+    # Call function to find topics
+    results <- find_topics()
+    n <- input$tf_num_topics # The number of topics to find
+    
+    # Make sure topics were found and proper results are saved
+    if (is.null(results)) {
+      # Save NULL to reactive values and return FALSE
+      rv[["topics"]] <- NULL
+      rv[["response_topics"]] <- NULL
+      rv[["num_topics"]] <- 0
       
-      print(checked[[checkbox_id]])
-    })
+    } else {
+      #### * Remove All Existing Topic UIs #### 
+      ## Need to do this before updating the number of topics found
+      lapply(1:rv$num_topics, function (t)
+        removeUI(paste0("#topic_tag_",t))
+      )
+      
+      # Save results to reactive values and return TRUE
+      rv[["topics"]] <- results[1:n] # The first n list items are the topics
+      rv[["response_topics"]] <- results[n+1:length(results)] # The rest are response topics
+      rv[["num_topics"]] <- n
+      
+      # Convert response topics from list to data frame for Results Tabs
+      rv$response_topics <- data.frame(
+        Response = rv$response_topics$Response,
+        Topic = rv$response_topics$Topic,
+        Text = rv$response_topics$Text
+      ) 
+      
+      #### * Insert New Topic UIs ####
+      lapply(1:n, function(t) {
+        
+        # Initial Variables
+        topic <- rv$topics[t]
+        topic_id <- paste0("topic_", t)
+        topic_tag_id <- paste0("topic_tag_", t)
+        topic_name <- names(topic)
+        topic_terms <- str_c(unlist(topic[1])[1:10], collapse = " | ")
+        topic_checkbox_id <- paste0("topic_checkbox_", t)
+        topic_title_id <- paste0("topic_title_", t)
+        topic_terms_id <- paste0("topic_terms_", t)
+        topic_num_terms_id <- paste0("topic_num_terms_", t)
+        
+        # Insert the New UIs ana Placeholders
+        insertUI("#tf_topics", "beforeBegin",
+                 tags$div(
+                   id = topic_tag_id,
+                   wellPanel(
+                     fluidRow(
+                       column(width = 1,
+                              # Convert to Category Checkbox
+                              checkboxInput(topic_checkbox_id, label = "")
+                       ),
+                       column(width = 3,
+                              # Topic Title Textbox
+                              textInput(topic_title_id, label = "", 
+                                        value = topic_name)
+                       ),
+                       column(width = 6,
+                              # Terms Text Output
+                              # Need this here so user can change the number of terms to show
+                              # without having to run the model again
+                              textOutput(topic_terms_id)
+                       ),
+                       column(width = 2,
+                              # Number of Terms to Show
+                              numericInput(topic_num_terms_id, "Terms",
+                                           value = 10, min = 1, max = 25)
+                       )
+                     )
+                   )
+                 )
+        )
+        
+        # Render the Topic's Terms (default is first 10)
+        output[[topic_terms_id]] <- renderText({
+          rv[[topic_terms_id]] <- topic_terms # Save as a reactive value
+          return(topic_terms)
+        })
+        
+        # * * Observe Event -- Update Number of Terms Showing ####
+        # Updates the number of terms to show whenever the topic's input changes
+        observeEvent(input[[topic_num_terms_id]], {
+          
+          # Retrieve and format the new number of terms
+          new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
+                                   collapse = " | ")
+          
+          # Render the Topic's New Terms
+          output[[topic_terms_id]] <- renderText({
+            rv[[topic_terms_id]] <- new_topic_terms # Save as a reactive value
+            return(new_topic_terms)
+          })
+        })
+      })
+    }
+  })
+  
+  
+  #### Observe Event -- Convert Topics ####
+  ## Adds a new Category "manually" for each selected topic
+  observeEvent(input$tf_convert_topics, {
     
-    print(paste0("Show Convert: ", !all(checked < 1)))
+    # Initial variables
+    num_topics_checked <- 0
+    n <- rv$num_topics # Number of topics
+    
+    # Loop through each topic
+    # lapply(1:n, function(t) {
+    for (t in 1:n) {
+      
+      # Proceed only if the topic is currently selected (checked)
+      if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
+        
+        # Retrieve topic info (from id's)
+        topic_title_id <- paste0("topic_title_", t)
+        topic_terms_id <- paste0("topic_terms_", t)
+        title <- input[[topic_title_id]]
+        terms <- rv[[topic_terms_id]]
+        
+        # Create New Category 
+        # (by pushing existing action buttons and updating the created UI)
+        if (rv$file_is_valid == TRUE) {
+          
+          # Click the 'Add Category' button
+          click("ctgAdd", asis = TRUE)
+          
+          # Save id's of category just created
+          ctg_id <- paste0("ctg_", input$ctgAdd)
+          ctg_add_rule_button_id <- paste0(ctg_id, "_add_rule")
+          
+          print(paste0("Click: ", ctg_add_rule_button_id))
+          
+          # Add a new rule
+          click(paste0(ctg_add_rule_button_id), asis = TRUE)
+          
+        } else {
+          # Show message
+          print("Please upload a valid file before converting topics to categories.")
+        }
+        
+        # Increment counter
+        num_topics_checked <- num_topics_checked + 1
+        
+      } else { } # Nothing happens
+      
+      # Show dialog modal if no topics were checked
+      
+    }
     
   })
   
@@ -1491,7 +1643,10 @@ server <- function(input, output, session) {
   #### Event Reactive -- fileValid ####
   ## Returns true if uploaded file is an accepted type
   output$fileValid <- eventReactive(input$responses, {
-    return(getData())
+    is_valid <- !is.null(getData())
+    
+    rv$file_is_valid <- is_valid # Save as a reactive value
+    return(is_valid)
   })
   outputOptions(output, 'fileValid', suspendWhenHidden = FALSE)
 
@@ -1521,109 +1676,10 @@ server <- function(input, output, session) {
   
   
   #### Event Reactive -- topicsFound ####
-  ## Calls find_topics() when the Topic Finder "Go!" button is pushed.
-  ## Returns TRUE if topics were found
-  output$topicsFound <- eventReactive(input$tf_go, {
-    
-    # Call function to find topics
-    results <- find_topics()
-    n <- input$tf_num_topics # The number of topics to find
-    
-    # Make sure topics were found and proper results are saved
-    if (is.null(results)) {
-      # Save NULL to reactive values and return FALSE
-      rv[["topics"]] <- NULL
-      rv[["response_topics"]] <- NULL
-      rv[["num_topics"]] <- 0
-      return(FALSE)
-      
-    } else {
-      # Save results to reactive values and return TRUE
-      rv[["topics"]] <- results[1:n] # The first n are the topics
-      rv[["response_topics"]] <- results[n+1:length(results)] # The rest are response topics
-      rv[["num_topics"]] <- n
-      
-      #### * Update Topic UIs ####
-      lapply(1:n, function(t) {
-        # Initial Variables
-        topic <- rv$topics[t]
-        topic_id <- paste0("topic_", t)
-        topic_tag_id <- paste0("topic_tag_", t)
-        topic_name <- names(topic)
-        topic_terms <- str_c(unlist(topic[1])[1:10], collapse = " | ")
-        topic_checkbox_id <- paste0("topic_checkbox_", t)
-        topic_title_id <- paste0("topic_title_", t)
-        topic_terms_tag_id <- paste0("topic_terms_tag_", t)
-        topic_terms_id <- paste0("topic_terms_", t)
-        topic_num_terms_id <- paste0("topic_num_terms_", t)
-        
-        # * * Remove Existing Topic UIs #### 
-        removeUI(paste0("#",topic_tag_id))
-        
-        # * * Insert New Topic UIs ####
-        insertUI("#tf_topics", "beforeBegin",
-                 tags$div(
-                   id = topic_tag_id,
-                   wellPanel(
-                     fluidRow(
-                       column(width = 1,
-                              # Convert to Category Checkbox
-                              checkboxInput(topic_checkbox_id, label = "")
-                       ),
-                       column(width = 3,
-                              # Topic Title Textbox
-                              textInput(topic_title_id, label = "", 
-                                        value = topic_name)
-                       ),
-                       column(width = 6,
-                              # Terms Text Placeholder
-                              # Need this here so user can change the number of terms to show
-                              # without having to run the model again
-                              tags$div(id = topic_terms_tag_id)
-                       ),
-                       column(width = 2,
-                              # Number of Terms to Show
-                              numericInput(topic_num_terms_id, "Terms",
-                                           value = 10, min = 1, max = 25)
-                       )
-                     )
-                   )
-                 )
-        )
-        
-        # Insert the Topic Terms
-        insertUI(paste0("#", topic_terms_tag_id), 
-                 "beforeBegin",
-                 tags$div(
-                   id = topic_terms_id,
-                   h6(topic_terms)
-                 )
-        )
-        
-        # * * Observe Event -- Update Number of Terms Showing ####
-        # Updates the number of terms to show whenever the topic's input changes
-        observeEvent(input[[topic_num_terms_id]], {
-          
-          # Remove any existing terms
-          removeUI(paste0("#", topic_terms_id))
-          
-          # Retrieve and format the new number of terms
-          new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
-                                   collapse = " | ")
-          
-          # Insert a new placeholder for the new terms
-          insertUI(paste0("#", topic_terms_tag_id), 
-                   "beforeBegin",
-                   tags$div(
-                     id = topic_terms_id,
-                     h6(new_topic_terms)
-                   )
-          )
-        })
-      })
-
-      return(TRUE)
-    }
+  ## Makes sure the results are shown when topics are found
+  output$topicsFound <- eventReactive(rv$num_topics, {
+    # Returns true if any topics were found (as updated by Go! observe event)
+    return(rv$num_topics > 0) 
   })
   outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
 
@@ -1673,12 +1729,12 @@ server <- function(input, output, session) {
           br(),
           flowLayout(
             # Fill
-            colourInput(paste0(default_id, "_fill"), label = "Fill", value = "gray", 
+            colourpicker::colourInput(paste0(default_id, "_fill"), label = "Fill", value = "gray", 
                         allowTransparent = TRUE, returnName = TRUE),
             # No Fill?
             checkboxInput(paste0(default_id, "_no_fill"), label = "No Fill", value = FALSE),
             # Color
-            colourInput(paste0(default_id, "_color"), label = "Color", value = "black", 
+            colourpicker::colourInput(paste0(default_id, "_color"), label = "Color", value = "black", 
                         allowTransparent = TRUE, returnName = TRUE),
             # No Color?
             checkboxInput(paste0(default_id, "_no_color"), label = "No Color", value = TRUE),
@@ -1715,12 +1771,12 @@ server <- function(input, output, session) {
             br(),
             flowLayout(
               # Fill
-              colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
+              colourpicker::colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
                           allowTransparent = TRUE, returnName = TRUE),
               # No Fill?
               checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
               # Color
-              colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
+              colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
                           allowTransparent = TRUE, returnName = TRUE),
               # No Color?
               checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
@@ -1762,12 +1818,12 @@ server <- function(input, output, session) {
           hr(),
           flowLayout(
             # Fill
-            colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
+            colourpicker::colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
                         allowTransparent = TRUE, returnName = TRUE),
             # No Fill?
             checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
             # Color
-            colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
+            colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
                         allowTransparent = TRUE, returnName = TRUE),
             # No Color?
             checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
@@ -1788,6 +1844,29 @@ server <- function(input, output, session) {
         )
       }
     }
+  })
+  
+  
+  #### Render Topic Details Plot ####
+  output$tf_details_plot <- renderPlot({
+    # Plot the number of responses within each found topic
+    rv$response_topics %>%
+      group_by(Topic) %>% 
+      summarise(Count = n()) %>% # Data Label Column
+      ggplot() +
+      geom_col(aes(x = Topic, y = Count), fill = "dodgerblue4", color = "dodgerblue4") +
+      geom_text(aes(x = Topic, y = Count, label = Count), 
+                nudge_y = 15, color = "dodgerblue4") +
+      scale_x_continuous(breaks = seq(1, rv$num_topics)) +
+      labs(title = "Number of Responses per Topic", y = "Responses") +
+      theme_hc()
+  })
+  
+  
+  #### Render Topic Details Table ####
+  output$tf_details_tbl <- renderDataTable({
+    # Render Data Table
+    return(rv$response_topics)
   })
   
   
