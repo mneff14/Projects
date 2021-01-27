@@ -113,12 +113,8 @@ ui <- fluidPage(
                                   style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
               ),
               column(width = 10,
-                     # Show/Hide Convert Button
-                     conditionalPanel(
-                       condition = "output.tf_show_convert_button",
-                       # Convert Button
-                       actionButton("tf_convert_topics", "Convert Topics")
-                     )
+                     # Convert Button
+                     actionButton("tf_convert_topics", "Convert Topics")
               )
             ),
             #### * * TF Initial Variables ####
@@ -600,9 +596,8 @@ server <- function(input, output, session) {
   
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
-  rv <- reactiveValues(tf_show_convert_button = FALSE,
-                       num_topics = 0,
-                       tf_check_topics = FALSE)
+  rv <- reactiveValues(num_topics = 0,
+                       tf_check_topics = 0)
 
   
   
@@ -1467,6 +1462,26 @@ server <- function(input, output, session) {
   })
   
   
+  # Observe Event -- Convert Topics ####
+  # Sends values to determine when the Convert button shows
+  observeEvent(rv$tf_convert_topics, {
+    
+    # Hide the Convert button (return FALSE) only when all topic check boxes
+    # are unchecked.
+    checked <- list()
+    lapply(1:rv$num_topics, function(i) {
+      # Save whether each topic's checkbox is checked
+      checkbox_id <- paste0("topic_checkbox_", i)
+      checked[[checkbox_id]] <- input[[checkbox_id]]
+      
+      print(checked[[checkbox_id]])
+    })
+    
+    print(paste0("Show Convert: ", !all(checked < 1)))
+    
+  })
+  
+  
 
   
   #### OUTPUT FUNTIONS ####
@@ -1605,56 +1620,13 @@ server <- function(input, output, session) {
                    )
           )
         })
-        
-        # * * Observe Event -- Check Topics ####
-        # Sends values to determine when the Convert button shows
-        observeEvent(input[[topic_checkbox_id]], {
-          
-          if (input[[topic_checkbox_id]] == FALSE) {
-            # If checked, show the Convert button 
-            rv$tf_show_convert_button <- TRUE
-            rv$tf_check_topics <- FALSE
-          } else {
-            # If unchecked, will trigger an eventReactive to show Convert button
-            # if any other topic is checked
-            rv$tf_show_convert_button <- FALSE
-            rv$tf_check_topics <- TRUE          
-          }
-        })
       })
 
       return(TRUE)
     }
   })
   outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
-  
-  
-  #### Event Reactive -- tf_show_convert_button ####
-  ## Will show Convert button unless all topics' checkboxes are unchecked
-  observeEvent(rv$tf_show_convert_button, ignoreInit = TRUE, {
-    
-    # Hide Convert button if all topics are unchecked
-    if (rv$tf_show_convert_button == FALSE & rv$tf_check_topics == TRUE) {
-      
-      # Initial Variables
-      all_unchecked <- FALSE
-      checked <- list()
-      
-      # Save whether each topic's checkbox is checked
-      lapply(1:rv$num_topics, function(i) {
-        checkbox_id <- paste0("topic_checkbox_", i)
-        checked[[checkbox_id]] <- input[[checkbox_id]]
-      }) 
-      
-      # Update reactive values
-      rv$tf_show_convert_button <- all(checked) # Return FALSE only if all in list are FALSE
-      rv$tf_check_topics <- FALSE
-    } 
-    else {
-      rv$tf_show_convert_button <- TRUE
-      rv$tf_check_topics <- FALSE
-    }
-  })
+
 
   
   #### Render Plot ####
