@@ -109,7 +109,7 @@ Brigham Young University - Idaho
 
 Rexburg, Idaho
 
-June 2019 - Current
+June 2019 - December 2020
 
 * Participated in a team that created a Shiny app on R Studio for SCOTs that helps teachers implement and understand surveys in the classroom  
 * Collaborated with team members via GitHub, Slack, and Google Sheets    
