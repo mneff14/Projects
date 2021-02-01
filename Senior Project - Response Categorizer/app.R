@@ -609,6 +609,7 @@ server <- function(input, output, session) {
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
   rv <- reactiveValues(num_topics = 0,
                        tf_check_topics = 0,
+<<<<<<< HEAD
                        file_is_valid = FALSE,
                        # Data frames for clicking buttons to add topics as categories
                        topics_to_add = data.frame( 
@@ -626,6 +627,9 @@ server <- function(input, output, session) {
                          rule_id = character()
                        )
   )
+=======
+                       file_is_valid = FALSE)
+>>>>>>> 6c16353a912004df6778e757a620044a1ee2a3d3
 
   
   
@@ -1336,6 +1340,11 @@ server <- function(input, output, session) {
     ctg_add_rule_button_id <- paste0(ctg_id, "_add_rule")
     remove_ctg_id <- paste0("remove_ctg", id_add)
     remove_ctg_button_id <- paste0("remove_ctg_button_", id_add)
+<<<<<<< HEAD
+=======
+    
+    print(paste0("Orig: ", ctg_add_rule_button_id))
+>>>>>>> 6c16353a912004df6778e757a620044a1ee2a3d3
     
     ## Create rv variable for tracking values
     ctg_num_rules_id <- paste0(ctg_id, "_num_rules")
@@ -1598,6 +1607,7 @@ server <- function(input, output, session) {
           })
         })
       })
+<<<<<<< HEAD
     }
   })
   
@@ -1686,11 +1696,116 @@ server <- function(input, output, session) {
           print(paste0("Click Rule: ", ctg_add_rule_button_id))
         })
       } else {}
+=======
+>>>>>>> 6c16353a912004df6778e757a620044a1ee2a3d3
     }
 
     # Create new Rule UI
     # local( click(ctg_add_rule_button_id, asis = TRUE) ) # New Rule UI
   })
+  
+
+  
+  #### OUTPUT FUNTIONS ####
+  
+  
+  
+  #### Event Reactive -- fileValid ####
+  ## Returns true if uploaded file is an accepted type
+  output$fileValid <- eventReactive(input$responses, {
+    is_valid <- !is.null(getData())
+    
+    rv$file_is_valid <- is_valid # Save as a reactive value
+    return(is_valid)
+  })
+  outputOptions(output, 'fileValid', suspendWhenHidden = FALSE)
+
+  
+  #### Event Reactive -- categoriesAdded ####
+  ## Returns true if categories have been added
+  output$categoriesAdded <- eventReactive(input$update, {
+    ifelse(input$ctgAdd > 0, return(TRUE), return(FALSE))    
+  })
+  outputOptions(output, 'categoriesAdded', suspendWhenHidden = FALSE)
+  
+  
+  #### Event Reactive -- plotDisplayed ####
+  ## Returns true if plot has been created
+  output$plotDisplayed <- eventReactive(input$update, {
+    return(!is.null(plotGG()))
+  })
+  outputOptions(output, 'plotDisplayed', suspendWhenHidden = FALSE)
+  
+  
+  #### Event Reactive -- tableDisplayed ####
+  ## Returns true if table has been created
+  output$tableDisplayed <- eventReactive(input$update, {
+    return(!is.null(plotTable()))
+  })
+  outputOptions(output, 'tableDisplayed', suspendWhenHidden = FALSE)
+  
+  
+  #### Event Reactive -- topicsFound ####
+  ## Makes sure the results are shown when topics are found
+  output$topicsFound <- eventReactive(rv$num_topics, {
+    # Returns true if any topics were found (as updated by Go! observe event)
+    return(rv$num_topics > 0) 
+  })
+  
+  
+  #### Observe Event -- Convert Topics ####
+  ## Adds a new Category "manually" for each selected topic
+  observeEvent(input$tf_convert_topics, {
+    
+    # Initial variables
+    num_topics_checked <- 0
+    n <- rv$num_topics # Number of topics
+    
+    # Loop through each topic
+    # lapply(1:n, function(t) {
+    for (t in 1:n) {
+      
+      # Proceed only if the topic is currently selected (checked)
+      if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
+        
+        # Retrieve topic info (from id's)
+        topic_title_id <- paste0("topic_title_", t)
+        topic_terms_id <- paste0("topic_terms_", t)
+        title <- input[[topic_title_id]]
+        terms <- rv[[topic_terms_id]]
+        
+        # Create New Category 
+        # (by pushing existing action buttons and updating the created UI)
+        if (rv$file_is_valid == TRUE) {
+          
+          # Click the 'Add Category' button
+          click("ctgAdd", asis = TRUE)
+          
+          # Save id's of category just created
+          ctg_id <- paste0("ctg_", input$ctgAdd)
+          ctg_add_rule_button_id <- paste0(ctg_id, "_add_rule")
+          
+          print(paste0("Click: ", ctg_add_rule_button_id))
+          
+          # Add a new rule
+          click(paste0(ctg_add_rule_button_id), asis = TRUE)
+          
+        } else {
+          # Show message
+          print("Please upload a valid file before converting topics to categories.")
+        }
+        
+        # Increment counter
+        num_topics_checked <- num_topics_checked + 1
+        
+      } else { } # Nothing happens
+      
+      # Show dialog modal if no topics were checked
+      
+    }
+    
+  })
+  
   
 
   
