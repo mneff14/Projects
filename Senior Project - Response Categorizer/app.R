@@ -7,7 +7,7 @@
 
 #### Libraries ####
 
-pacman::p_load(shiny,shinyjs,shinyBS,shinybusy,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
+pacman::p_load(shiny,shinyjs,shinyBS,shinybusy, shinyalert,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
                tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda,slam)
 
 
@@ -20,29 +20,45 @@ ui <- fluidPage(
   ##### INPUT FUNCTIONS #####
   
   useShinyjs(), # Set up shinyjs for clicking buttons with code
+  useShinyalert(), # For pop-up message modals (Reference: https://deanattali.com/blog/shinyalert-package/)
   
-  # Add Busy Bar
-  add_busy_bar(color = "#337ab7", height = "8px"),
+  # Add Busy Spinner
+  add_busy_spinner(
+    spin = "semipolar",
+    color = "#337ab7",
+    timeout = 100,
+    position = "top-right",
+    onstart = FALSE,
+    margins = c(10, 10), # first element is distance from top/bottom, second element distance from right/left.
+    height = "50px",
+    width = "50px"
+  ),
   
   # Title
-  h1(em("Survey Response Categorizer")),
+  fluidRow(
+    column(width = 5, h1(em("Survey Response Categorizer"))),
+    column(width = 1, actionLink('info_btn_main_title', '', icon = icon('question-circle')))
+  ),
 
   #### Sidebar Panel ####
   sidebarPanel(
     
-    #### * Categorize for Me Button ####
-    actionButton("find_categories", "Find Categories for Me"),
-    
-    
     #### * Browse File Button ####
-    # Browse for responses and saves the datapath  
-    fileInput("responses", "Import Responses", 
-              buttonLabel = "Browse",
-              placeholder = "Excel / CSV",
-              accept = c("text/csv",
-                         "text/comma-separated-values,text/plain",
-                         ".xlsx", 
-                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    fluidRow(
+      column(width = 11,
+             # Browse for responses and saves the datapath  
+             fileInput("responses", "Import Responses", 
+                       buttonLabel = "Browse",
+                       placeholder = "Excel / CSV",
+                       accept = c("text/csv",
+                                  "text/comma-separated-values,text/plain",
+                                  ".xlsx", 
+                                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+             ),
+      ),
+      column(width = 1,
+             actionLink("info_btn_import_responses", "", icon = icon("question-circle"))
+      )
     ),
     
     #### * Browse File Conditional Panel ####
@@ -50,16 +66,25 @@ ui <- fluidPage(
     conditionalPanel(
       condition = "output.fileValid",
       
+      #### * * Show Tooltips ####
+      checkboxInput("show_tooltips", "Show Tooltips", value = TRUE),
+      
       fluidRow(
-        column(width = 6,
-               #### * * Add Category Button ####
-               actionButton("ctgAdd", "Add Category")
+        column(width = 11,
+               #### * * Categorize for Me Button ####
+               actionButton("find_categories", "Find Categories for Me",
+                            style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f"),
         ),
-        column(width = 6
-               # #### * * Categorize for Me Button
-               # actionButton("find_categories", "Find Categories for Me")
+        column(width = 1,
+               actionLink("info_btn_find_categories", "", icon = icon("question-circle"))        
         )
       ),
+
+      br(),
+      br(),
+      
+      #### * * Add Category Button ####
+      actionButton("ctgAdd", "Add Category"),
     
       #### * * Add Category Conditional Panel ####
       conditionalPanel(
@@ -98,21 +123,166 @@ ui <- fluidPage(
   #### Main Panel ####
   mainPanel(
     
+    #### * Tutorial Video Pop-ups ####
+    
+    ## All Tutorial Videos ##
+    ## (Contains Action Links to all tutorial video modals (pop-ups) with embedded videos
+    bsModal("tutorial_popup_all", "All Tutorials",
+            trigger = "tutorial_link_all", size = "s",
+            br()
+            # Links to All Tutorial Videos
+            # actionLink("tutorial_link_", "Watch ")
+    ),
+    
+    ## Tutorial Video - ##
+    
+    
+    
+    #### * Info Button Pop-ups ####
+    
+    ## Template info modal
+    # bsModal("info_popup_", " Information",
+    #         trigger = "info_btn_", size = "s",
+    #         # Info Text
+    #         tags$h5(''),
+    #         br(),
+    #         ## Link to specific Tutorial Video
+    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
+    #         ## Link to All Tutorial Videos Pop-up
+    #         # actionLink("tutorial_link_all", "View All Tutorials")
+    # ),
+    
+    
+    ## Template Info button
+    # actionLink("info_btn_topic_finder", "", icon = icon("question-circle"))
+    
+    
+    ## Info - Main Title ##
+    bsModal("info_popup_main_title", "Main App Information",
+            trigger = "info_btn_main_title", size = "s",
+            # Info Text
+            tags$h5("This R Shiny App enables you to easily organize open-ended responses from a survey question into categories and visualize them for your reports."),
+            tags$h5("To learn how to use it, click any info button for an explanation, or watch these tutorials:"),
+            # Link to All Tutorial Videos Pop-up
+            actionLink("tutorial_link_all", "View All Tutorials"),
+            tags$h5("Happy categorizing!")
+    ),
+    
+    ## Info - Import Responses ##
+    bsModal("info_popup_import_responses", "Importing Information",
+            trigger = "info_btn_import_responses", size = "s",
+            # Info Text
+            tags$h5("Allows you upload a CSV or Excel file. You can either: "),
+            tags$h5("   1) Browse for the file from your local computer by pressing the “Browse” button or "),
+            tags$h5("   2) Drag and drop the file next to the button."),
+            br()
+            ## Link to specific Tutorial Video
+            # actionLink("tutorial_link_", "Watch Tutorial: ")
+            ## Link to All Tutorial Videos Pop-up
+            # actionLink("tutorial_link_all", "View All Tutorials")
+    ),
+    
+    ## Info - Find Categories for Me Button ##
+    bsModal("info_popup_find_categories", '"Find Categories for Me" Information',
+            trigger = "info_btn_find_categories", size = "s",
+            # Info Text
+            tags$h5("A great place to start if you don’t know what categories to add."),
+            tags$h5("The button opens the Topic Finder window, which will use machine learning to find abstract topics across responses.
+                    It will also convert a topic to a category and add it to your collection (as if it were entered manually)."),
+            br()
+            ## Link to specific Tutorial Video
+            # actionLink("tutorial_link_", "Watch Tutorial: ")
+            ## Link to All Tutorial Videos Pop-up
+            # actionLink("tutorial_link_all", "View All Tutorials")
+    ),
+    
+    ## Info -	Topic Finder Title ##
+    # bsModal("info_popup_topic_finder", "Topic Finder Information",
+    #         trigger = "info_btn_topic_finder", size = "s",
+    #         # Info Text
+    #         # Reference for embedding link: https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
+    #         tagList(
+    #           'The Topic Finder uses the “topicmodels” R package to clean the responses and implement LDA and CTM
+    #           Topic Modeling Machine Learning models to identify a specified number of abstract topics across all
+    #           responses (see ',
+    #           a("here", href = "https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf"),
+    #           ' for full documentation).'
+    #         ),
+    #         tags$h5("Although two separate models are fitted (one LDA and one CTM), only the model with the lowest
+    #                 mean entropy is used in prediction. (The mean entropy measures how widely the model's topics are
+    #                 distributed across the responses. Therefore, the lower the mean entropy, the more precise and
+    #                 descriptive the predicted topics are.) "),
+    #         br()
+    #         ## Link to specific Tutorial Video
+    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
+    #         ## Link to All Tutorial Videos Pop-up
+    #         # actionLink("tutorial_link_all", "View All Tutorials")
+    # ),
+    
+    ## * Info -	Number Topics to Find ##
+    # bsModal("info_popup_num_topics_to_find", "Number of Topics to Find Information",
+    #         trigger = "info_btn_num_topics_to_find", size = "s",
+    #         # Info Text
+    #         tags$h5(''),
+    #         br(),
+    #         ## Link to specific Tutorial Video
+    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
+    #         ## Link to All Tutorial Videos Pop-up
+    #         # actionLink("tutorial_link_all", "View All Tutorials")
+    # ),
+    
+    ## * Info -	Words Not to Include ##
+    
+    ## * Info -	Convert Topics Button ##
+    
+    ## * Info -	Results TabPanel Title ##
+    
+    ## * Info -	Terms ##
+    
+    ## Info -	Default Category ##
+    
+    ## Info -	Multiple Categories Per Response ##
+    
+    ## Info -	Category Title ##
+    
+    ## Info -	Rule Title ##
+    
+    ## Info -	Plot Customizations ##
+    
+    
+    
+    
+    
     #### * Topic Finder Pop-up Window ####
-    # Reference: https://ebailey78.github.io/shinyBS/docs/Modals.html
+    ## Reference: https://ebailey78.github.io/shinyBS/docs/Modals.html
     bsModal("topic_finder", "Topic Finder", 
             trigger = "find_categories", size = "l", # Large
             
-            # Information Text
-            h6('The "Topic Finder" automatically finds topics (categories) for 
-               your responses using LDA and CTM machine learning models.'),
+            # Topic Finder Info Button
+            # actionLink("info_btn_topic_finder", "", icon = icon("question-circle")),
+            
+            # Main Info
+            # Reference for embedding link: https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
+            tagList(
+              'The Topic Finder uses the “topicmodels” R package to clean the responses and implement LDA and CTM
+              Topic Modeling Machine Learning models to identify a specified number of abstract topics across all
+              responses (see ',
+              a("here", href = "https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf"),
+              ' for full documentation).'
+            ),
+            tags$h5("Although two separate models are fitted (one LDA and one CTM), only the model with the lowest
+                    mean entropy is used in prediction. (The mean entropy measures how widely the model's topics are
+                    distributed across the responses. Therefore, the lower the mean entropy, the more precise and
+                    descriptive the predicted topics are.) "),
+            
+            
             
             #### * * TF Buttons ####
             fluidRow(
               column(width = 2,
                      # Go Button
                      actionButton("tf_go", "Go!",
-                                  style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
+                                  style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f")
               ),
               column(width = 10,
                      conditionalPanel(
@@ -128,7 +298,7 @@ ui <- fluidPage(
               
               # Number of Topics to Find
               numericInput("tf_num_topics", "Number of Topics to Find",
-                           value = 2, min = 2, max = 15),
+                           value = 5, min = 2, max = 10),
 
               # Words not to Include
               textInput("tf_words_not_include", "Words Not to Include",
@@ -295,7 +465,7 @@ ui <- fluidPage(
                                          selectInput("selectTheme", label = "Select a Theme", selected = "gray", 
                                                      choices = c("base","bw","calc","classic","clean","dark",
                                                                  "economist","economist_white","excel","excel_new",
-                                                                 "few","fivethrityeight","foundation","gdocs","gray",
+                                                                 "few","fivethirtyeight","foundation","gdocs","gray",
                                                                  "grey","hc","igray","light","linedraw","map",
                                                                  "minimal","pander","par","solarized","solarized_2",
                                                                  "solid","stata","test","tufte","void","wsj"))),
@@ -588,7 +758,10 @@ ui <- fluidPage(
         #### * * * Table Tab ####
         tabPanel("Table", br(), 
                  # Table showing which responses are in which category
-                 dataTableOutput("table"))
+                 dataTableOutput("table"),
+                 # Add Vertical Scroll Bar
+                 # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
+                 style = "height:500px; overflow-y: scroll; overflow-x: scroll;")
       )
     ),
     br(),
@@ -1588,19 +1761,29 @@ server <- function(input, output, session) {
           return(topic_terms)
         })
         
-        # * * Observe Event -- Update Number of Terms Showing ####
-        # Updates the number of terms to show whenever the topic's input changes
+        #### * * Observe Event -- Update Number of Terms Showing ####
+        ## Updates the number of terms to show whenever the topic's input changes
         observeEvent(input[[topic_num_terms_id]], {
           
-          # Retrieve and format the new number of terms
-          new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
-                                   collapse = " | ")
+          num_terms <- input[[topic_num_terms_id]]
           
-          # Render the Topic's New Terms
-          output[[topic_terms_id]] <- renderText({
-            rv[[topic_terms_id]] <- new_topic_terms # Save as a reactive value
-            return(new_topic_terms)
-          })
+          # Do nothing if input is not a number
+          if (!is.numeric(num_terms)) {  } else {
+            
+            # Proceed if input is greater than zero
+            if (num_terms > 0) {
+              
+              # Retrieve and format the new number of terms
+              new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
+                                       collapse = " | ")
+              
+              # Render the Topic's New Terms
+              output[[topic_terms_id]] <- renderText({
+                rv[[topic_terms_id]] <- new_topic_terms # Save as a reactive value
+                return(new_topic_terms)
+              })          
+            }
+          }
         })
       })
     }
@@ -1615,67 +1798,74 @@ server <- function(input, output, session) {
     num_topics_checked <- 0
     n <- rv$num_topics # Number of topics
     current_ctg_id <- input$ctgAdd + 1
+    prg_incr <- 1 / n # How much to increment the Progress bar
     
-    # Loop through each topic
-    for (t in 1:n) {
+    # Start the Progress Bar
+    withProgress(message = "Converting Topics to Categories", value = 0, {
       
-      # Proceed only if the topic is currently selected (checked)
-      if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
+      # Loop through each topic
+      for (t in 1:n) {
         
-        # Create New Category 
-        # (by pushing existing action buttons and updating the created UI)
-        if (rv$file_is_valid == TRUE) {
+        # Proceed only if the topic is currently selected (checked)
+        if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
           
-          # Retrieve topic info (from id's)
-          topic_title_id <- paste0("topic_title_", t)
-          topic_terms_id <- paste0("topic_terms_", t)
-          title <- input[[topic_title_id]]
-          terms <- rv[[topic_terms_id]]
-          new_ctg_id <- paste0("ctg_", current_ctg_id)
-          
-          # Click the 'Add Category' button
-          local({ 
-            click("ctgAdd", asis = TRUE) 
+          # Create New Category 
+          # (by pushing existing action buttons and updating the created UI)
+          if (rv$file_is_valid == TRUE) {
+            
+            # Retrieve topic info (from id's)
+            topic_title_id <- paste0("topic_title_", t)
+            topic_terms_id <- paste0("topic_terms_", t)
+            title <- input[[topic_title_id]]
+            terms <- rv[[topic_terms_id]]
+            new_ctg_id <- paste0("ctg_", current_ctg_id)
+            
+            # Click the 'Add Category' button
+            local({ 
+              click("ctgAdd", asis = TRUE) 
             })
-          
-          # Save variables to data frame
-          new_topic_to_add <- data.frame(
-            t = t,
-            title = title,
-            terms = terms,
-            ctg_id = new_ctg_id,
-            rule_id = "",
-            buttons_pushed = FALSE
-          )
-          
-          # Add new topic variables to data frame reactive value
-          rv$topics_to_add <- bind_rows(rv$topics_to_add, new_topic_to_add)
-          
+            
+            # Save variables to data frame
+            new_topic_to_add <- data.frame(
+              t = t,
+              title = title,
+              terms = terms,
+              ctg_id = new_ctg_id,
+              rule_id = "",
+              buttons_pushed = FALSE
+            )
+            
+            # Add new topic variables to data frame reactive value
+            rv$topics_to_add <- bind_rows(rv$topics_to_add, new_topic_to_add)
+            
+            # Increment counter
+            current_ctg_id <- current_ctg_id + 1
+            
+          } else {
+            # No file imported
+          }
           # Increment counter
-          current_ctg_id <- current_ctg_id + 1
+          num_topics_checked <- num_topics_checked + 1
           
-        } else {
-          # Show message
-          print("Please upload a valid file before converting topics to categories.")
-        }
+        } else { } # Nothing happens
         
-        # Increment counter
-        # num_topics_checked <- num_topics_checked + 1
-        
-      } else { } # Nothing happens
+        # Increment Progress Bar
+        incProgress(amount = prg_incr)
+      }
       
-      # Show dialog modal if no topics were checked
-      
-    }
-    
+      # Show pop-up message to select topics before pushing button
+      if (num_topics_checked == 0) { 
+        shinyalert(title = "Oops!",
+                   text = "Please select (check) at least one topic to convert.",
+                   type = "error") 
+      }
+    })
   })
   
   
   #### Observe Event -- New Topic to Convert Added ####
   ## Will finish converting a newly added topic to a category
   observeEvent(rv$topics_to_add, ignoreInit = TRUE, {
-    
-    # glimpse(rv$topics_to_add)
     
     # Loop through each topic to add and finish conversion, if applicable
     for (t in 1:nrow(rv$topics_to_add)) {
@@ -1693,6 +1883,63 @@ server <- function(input, output, session) {
         rv$topics_to_add$buttons_pushed[t] <- TRUE
         
       } else { } # Nothing Happens
+    }
+  })
+  
+  
+  #### Toggle Tooltips ####
+  ## Add tooltips only if checkbox is checked
+  observeEvent(input$show_tooltips, {
+    if (input$show_tooltips) {
+      
+      ### Add Tooltips
+      
+      # Add Category Tooltip
+      addTooltip(session, id = "ctgAdd", trigger = "hover",
+                 title = "
+                 A Category is a general theme that survey responses can belong to. 
+                 Each Category has a name and Rules to control how/when responses would 
+                 fall under it.                  
+                 ")
+      
+      # ## Find Categories For Me Tooltip
+      # addTooltip(session, id = "find_categories", trigger = "hover",
+      #            title = "A great place to start if you don’t know what categories to add.
+      #        Opens the Topic Finder window.")
+      
+      ## Find Categories For Me Popover
+      addPopover(session, id = "find_categories", trigger = "hover",
+                 title = "Information",
+                 content = paste0(
+                 "A great place to start if you don’t know what categories to add.
+                 \n
+                 Opens the Topic Finder window."))
+      
+      ## Number of Topics to Find Tooltip
+      addTooltip(session, id = "tf_num_topics", trigger = "focus", 
+                 title = "
+                 For the machine learning models to work, you must first specify
+                 how many abstract topics there might be across all responses. The minimum 
+                 is 2, and the maximum is 10.
+                 ")
+      
+      ## Words Not to Include Tooltip
+      addPopover(session, id = "tf_words_not_include", trigger = "focus", 
+                 title = "Information",
+                 content = "
+                 These words will be taken out of all responses before running the 
+                 machine learning models. Each word/phrase MUST be separated by a comma!
+                 ")
+    
+    } else {
+      
+      ### Remove Tooltips  ###
+      
+      removeTooltip(session, id = "find_categories")
+      removePopover(session, id = "find_categories")
+      removeTooltip(session, id = "ctgAdd")
+      removeTooltip(session, id = "tf_num_topics")
+      removeTooltip(session, id = "tf_words_not_include")
     }
   })
   
@@ -1772,7 +2019,7 @@ server <- function(input, output, session) {
     } else {
       print("Cannot render table; data is NULL")
     }
-  })
+  }, options = list(pageLength = 10))
   
   
   #### Render Aesthetic Customization UI's ####
@@ -1929,7 +2176,7 @@ server <- function(input, output, session) {
   output$tf_details_tbl <- renderDataTable({
     # Render Data Table
     return(rv$response_topics)
-  })
+  }, options = list(pageLength = 10))
   
   
   
