@@ -34,52 +34,52 @@ ui <- fluidPage(
     width = "50px"
   ),
   
-  # Title
-  fluidRow(
-    column(width = 5, h1(em("Survey Response Categorizer"))),
-    column(width = 1, actionLink('info_btn_main_title', '', icon = icon('question-circle')))
-  ),
-
+  # Main Title
+  h1(em("Survey Response Categorizer")),
+  
+  
   #### Sidebar Panel ####
   sidebarPanel(
     
     #### * Browse File Button ####
-    fluidRow(
-      column(width = 11,
-             # Browse for responses and saves the datapath  
-             fileInput("responses", "Import Responses", 
-                       buttonLabel = "Browse",
-                       placeholder = "Excel / CSV",
-                       accept = c("text/csv",
-                                  "text/comma-separated-values,text/plain",
-                                  ".xlsx", 
-                                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-             ),
-      ),
-      column(width = 1,
-             actionLink("info_btn_import_responses", "", icon = icon("question-circle"))
+    wellPanel(
+      h4(id = "import_title", "Import Responses"),
+      fileInput("responses", "", 
+                buttonLabel = "Browse",
+                placeholder = "Excel / CSV",
+                accept = c("text/csv",
+                           "text/comma-separated-values,text/plain",
+                           ".xlsx", 
+                           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
       )
     ),
+    
+    
+    #### * Help Section ####
+    
+    wellPanel(
+    h4("Help"),
+    br(),
+      flowLayout(
+        #### * * Main Info Action Link 
+        actionLink("info_btn_main", "About", icon = icon("question-circle")),
+        #### * * Watch Tutorials Action Link 
+        actionLink("watch_tutorials", "Tutorials", icon = icon("graduation-cap")),
+        #### * * Show Tooltips Checkbox 
+        checkboxInput("show_tooltips", "Show Tooltips", value = TRUE)
+      ),
+    ),
+    
     
     #### * Browse File Conditional Panel ####
     # These allow other categories to be added / removed when file is uploaded
     conditionalPanel(
       condition = "output.fileValid",
       
-      #### * * Show Tooltips ####
-      checkboxInput("show_tooltips", "Show Tooltips", value = TRUE),
+      #### * * Find Categories for Me Button ####
+      actionButton("find_categories", "Find Categories for Me",
+                   style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f"),
       
-      fluidRow(
-        column(width = 11,
-               #### * * Categorize for Me Button ####
-               actionButton("find_categories", "Find Categories for Me",
-                            style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f"),
-        ),
-        column(width = 1,
-               actionLink("info_btn_find_categories", "", icon = icon("question-circle"))        
-        )
-      ),
-
       br(),
       br(),
       
@@ -123,134 +123,41 @@ ui <- fluidPage(
   #### Main Panel ####
   mainPanel(
     
-    #### * Tutorial Video Pop-ups ####
+    #### * Tutorial Pop-ups ####
     
     ## All Tutorial Videos ##
     ## (Contains Action Links to all tutorial video modals (pop-ups) with embedded videos
-    bsModal("tutorial_popup_all", "All Tutorials",
-            trigger = "tutorial_link_all", size = "s",
-            br()
+    bsModal("tutorials_all", "Tutorials",
+            trigger = "watch_tutorials", size = "s",
+            # Opening
+            h5('Learn how to use the Survey Response Categorizer App by watching these tutorials!'),
+            hr(),
             # Links to All Tutorial Videos
-            # actionLink("tutorial_link_", "Watch ")
+            flowLayout(
+              wellPanel(
+                actionLink("tutorial_link_demo", "Demo", icon = icon("chalkboard-teacher")),
+              ),
+              wellPanel(
+                actionLink("tutorial_link_", "Tutorial", icon = icon("video"))
+              )
+            )
     ),
-    
-    ## Tutorial Video - ##
-    
     
     
     #### * Info Button Pop-ups ####
     
-    ## Template info modal
-    # bsModal("info_popup_", " Information",
-    #         trigger = "info_btn_", size = "s",
-    #         # Info Text
-    #         tags$h5(''),
-    #         br(),
-    #         ## Link to specific Tutorial Video
-    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
-    #         ## Link to All Tutorial Videos Pop-up
-    #         # actionLink("tutorial_link_all", "View All Tutorials")
-    # ),
-    
-    
-    ## Template Info button
-    # actionLink("info_btn_topic_finder", "", icon = icon("question-circle"))
-    
-    
-    ## Info - Main Title ##
-    bsModal("info_popup_main_title", "Main App Information",
-            trigger = "info_btn_main_title", size = "s",
+    ## Help Section Info Button
+    bsModal("info_popup_main", "About",
+            trigger = "info_btn_main", size = "s",
             # Info Text
-            tags$h5("This R Shiny App enables you to easily organize open-ended responses from a survey question into categories and visualize them for your reports."),
-            tags$h5("To learn how to use it, click any info button for an explanation, or watch these tutorials:"),
-            # Link to All Tutorial Videos Pop-up
-            actionLink("tutorial_link_all", "View All Tutorials"),
-            tags$h5("Happy categorizing!")
+            tags$h5('This R Shiny App enables you to easily organize open-ended 
+                    responses from a survey question into categories and visualize 
+                    them for your reports.'),
+            tags$h5('To watch a demo or other tutorials, click the "Tutorials" link.'),
+            tags$h5('For quick information, tooltips will appear over buttons and input fields
+                    while the "Show Tooltips" checkbox is checked.'),
+            tags$h5('Happy Categorizing!')
     ),
-    
-    ## Info - Import Responses ##
-    bsModal("info_popup_import_responses", "Importing Information",
-            trigger = "info_btn_import_responses", size = "s",
-            # Info Text
-            tags$h5("Allows you upload a CSV or Excel file. You can either: "),
-            tags$h5("   1) Browse for the file from your local computer by pressing the “Browse” button or "),
-            tags$h5("   2) Drag and drop the file next to the button."),
-            br()
-            ## Link to specific Tutorial Video
-            # actionLink("tutorial_link_", "Watch Tutorial: ")
-            ## Link to All Tutorial Videos Pop-up
-            # actionLink("tutorial_link_all", "View All Tutorials")
-    ),
-    
-    ## Info - Find Categories for Me Button ##
-    bsModal("info_popup_find_categories", '"Find Categories for Me" Information',
-            trigger = "info_btn_find_categories", size = "s",
-            # Info Text
-            tags$h5("A great place to start if you don’t know what categories to add."),
-            tags$h5("The button opens the Topic Finder window, which will use machine learning to find abstract topics across responses.
-                    It will also convert a topic to a category and add it to your collection (as if it were entered manually)."),
-            br()
-            ## Link to specific Tutorial Video
-            # actionLink("tutorial_link_", "Watch Tutorial: ")
-            ## Link to All Tutorial Videos Pop-up
-            # actionLink("tutorial_link_all", "View All Tutorials")
-    ),
-    
-    ## Info -	Topic Finder Title ##
-    # bsModal("info_popup_topic_finder", "Topic Finder Information",
-    #         trigger = "info_btn_topic_finder", size = "s",
-    #         # Info Text
-    #         # Reference for embedding link: https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
-    #         tagList(
-    #           'The Topic Finder uses the “topicmodels” R package to clean the responses and implement LDA and CTM
-    #           Topic Modeling Machine Learning models to identify a specified number of abstract topics across all
-    #           responses (see ',
-    #           a("here", href = "https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf"),
-    #           ' for full documentation).'
-    #         ),
-    #         tags$h5("Although two separate models are fitted (one LDA and one CTM), only the model with the lowest
-    #                 mean entropy is used in prediction. (The mean entropy measures how widely the model's topics are
-    #                 distributed across the responses. Therefore, the lower the mean entropy, the more precise and
-    #                 descriptive the predicted topics are.) "),
-    #         br()
-    #         ## Link to specific Tutorial Video
-    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
-    #         ## Link to All Tutorial Videos Pop-up
-    #         # actionLink("tutorial_link_all", "View All Tutorials")
-    # ),
-    
-    ## * Info -	Number Topics to Find ##
-    # bsModal("info_popup_num_topics_to_find", "Number of Topics to Find Information",
-    #         trigger = "info_btn_num_topics_to_find", size = "s",
-    #         # Info Text
-    #         tags$h5(''),
-    #         br(),
-    #         ## Link to specific Tutorial Video
-    #         # actionLink("tutorial_link_", "Watch Tutorial: ")
-    #         ## Link to All Tutorial Videos Pop-up
-    #         # actionLink("tutorial_link_all", "View All Tutorials")
-    # ),
-    
-    ## * Info -	Words Not to Include ##
-    
-    ## * Info -	Convert Topics Button ##
-    
-    ## * Info -	Results TabPanel Title ##
-    
-    ## * Info -	Terms ##
-    
-    ## Info -	Default Category ##
-    
-    ## Info -	Multiple Categories Per Response ##
-    
-    ## Info -	Category Title ##
-    
-    ## Info -	Rule Title ##
-    
-    ## Info -	Plot Customizations ##
-    
-    
-    
     
     
     #### * Topic Finder Pop-up Window ####
@@ -310,29 +217,33 @@ ui <- fluidPage(
             conditionalPanel(
               condition = "output.topicsFound",
               
+              # Adjust width of Tabs
+              tags$style(HTML(".tabbable > .nav > li > a {width: 250PX;}")),
+              
               # Results Tabset Panel
-              tabsetPanel(id = "tf_results", 
-                          tabPanel("Topics",
+              tabsetPanel(id = "tf_results",
+                          # Topics Tab
+                          tabPanel(title = strong(id = "topics_tab", "Topics"),
                                    # Placeholder for Topic UIs
                                    tags$div(id = "tf_topics")
                           ),
-                          tabPanel("Details",
+                          tabPanel(title = strong(id = "details_tab", "Details"),
                                    # Details Tabs
                                    navbarPage(id = "tf_details", title = "",
-                                               tabPanel("View Graph",
-                                                        # Output for Details Plot
-                                                        plotOutput("tf_details_plot", height = "500px")
-                                               ),
-                                               tabPanel("View Table",
-                                                        # Output for Details Data Table
-                                                        dataTableOutput("tf_details_tbl"),
-                                                                        # Add Vertical Scroll Bar
-                                                                        # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
-                                                                        style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
-                                               )
+                                              tabPanel("View Graph",
+                                                       # Output for Details Plot
+                                                       plotOutput("tf_details_plot", height = "500px")
+                                              ),
+                                              tabPanel("View Table",
+                                                       # Output for Details Data Table
+                                                       dataTableOutput("tf_details_tbl"),
+                                                       # Add Vertical Scroll Bar
+                                                       # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
+                                                       style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
+                                              )
                                    )
-                          )
-              )            
+                          )                          
+              )           
             )
     ), 
     
@@ -763,7 +674,7 @@ ui <- fluidPage(
                  # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
                  style = "height:500px; overflow-y: scroll; overflow-x: scroll;")
       )
-    ),
+    ),   
     br(),
     br(),
     br(),
@@ -1564,6 +1475,24 @@ server <- function(input, output, session) {
     rv[[remove_ctg_id]] <- TRUE
     
     
+    #### * Add/Remove All Category Tooltips ####
+    observeEvent(input$show_tooltips, {
+      if (input$show_tooltips) {
+        ## Add Category + Rule Button Tooltip
+        addPopover(session, id = ctg_add_rule_button_id, trigger = "hover", 
+                   title = "+ Rule Info",
+                   content = "
+                 When multiple Rules are created for a Category, a response must 
+                 meet all of the Rules' criteria to be assigned to that Category.
+                 ")
+      } else {
+        
+        # Remove All Category Tooltips
+        removePopover(session, id = ctg_add_rule_button_id)
+      }
+    })
+    
+    
     #### * Observe Event -- Remove Category ####
     ## Removes all elements in category when remove category button is pushed
     observeEvent(input[[remove_ctg_button_id]], {
@@ -1604,7 +1533,7 @@ server <- function(input, output, session) {
       
          
       #### * * Insert Rule UI's ####
-      insertUI(
+      insertUI(immediate = TRUE,
         selector = paste0("#", ctg_id, "_rules"),
         ui = tags$div(
           # Has this id for removal
@@ -1636,9 +1565,9 @@ server <- function(input, output, session) {
       ## Increase number of rules in reactive values
       rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] + 1
 
-
-      #### * * Insert Remove Rule Button ####
-      insertUI(
+      
+      ## Insert Remove Rule Button
+      insertUI(immediate = TRUE,
         selector = paste0("#", ctg_id, "_remove_rule_buttons"),
         ui = tags$div(
           # For removing the button
@@ -1647,8 +1576,57 @@ server <- function(input, output, session) {
           actionButton(remove_rule_button_id, paste0("- Rule ", id_add_rule))
         )
       )
+      
       ## Set rule remove button id in reactive values to TRUE
       rv[[remove_rule_id]] <- TRUE
+      
+      
+      #### * * Add/Remove All Rule Tooltips ####
+      observeEvent(input$show_tooltips, {
+        if (input$show_tooltips) {
+          
+          ## Add Rule Keywords Tooltip
+          addPopover(session, id = rule_keywords_id, trigger = "hover", 
+                     title = "Keywords Info",
+                     content = "
+                 All Keywords will be compared to each word in every response’s 
+                 text. If they “match”, that response will be assigned to this 
+                 Rule’s Category. All words can be separated by any delimiter, 
+                 but whitespaces will be removed. (Ex: . , | ; : )                 
+                 ")
+          
+          ## Add Rule Sorting Options Tooltip
+          addPopover(session, id = rule_sort_options_id, trigger = "hover", 
+                     title = "Sorting Options Info",
+                     content = "
+                 Determines how the Keywords will “match” each word in a response’s text.
+                 ")
+          
+          ## Add Rule Standardize Tooltip
+          addPopover(session, id = rule_standardize_id, trigger = "hover", 
+                     title = "Standardize Info",
+                     content = "
+                 If checked, makes all Keywords and response’s words lowercase before comparing.
+                 ")
+          
+          ## Add Rule Search By Options Tooltip
+          addPopover(session, id = rule_search_by_id, trigger = "hover", 
+                     title = "Search By Options Info",
+                     content = "
+                 Determines how the Keywords will be compared to a response. 
+                 “Response” compares all Keywords to the entire response’s text. 
+                 “Word” compares all Keywords to every individual word in the response’s text.
+                 ")   
+          
+        } else {
+          
+          # Remove All Rule Tooltips
+          removePopover(session, id = rule_keywords_id)
+          removePopover(session, id = rule_sort_options_id)
+          removePopover(session, id = rule_standardize_id)
+          removePopover(session, id = rule_search_by_id)
+        }
+      })
       
       
       #### * * Observe Event -- Remove Rule ####
@@ -1892,54 +1870,140 @@ server <- function(input, output, session) {
   observeEvent(input$show_tooltips, {
     if (input$show_tooltips) {
       
-      ### Add Tooltips
+      #### * Add Tooltips ####
       
-      # Add Category Tooltip
-      addTooltip(session, id = "ctgAdd", trigger = "hover",
-                 title = "
+      # # Template Popover
+      # addPopover(session, id = "", trigger = "hover",
+      #            title = " Info",
+      #            content = "
+      #            
+      #            ")
+      
+      # Import Responses Popover
+      addPopover(session, id = "import_title", trigger = "hover",
+                 title = "Importing Info",
+                 content = "
+                 Allows you upload a CSV or Excel file. You can either: 
+                 1) Browse for the file from your local computer by pressing the “Browse” button or 
+                 2) Drag and drop the file next to the button.
+                 ")
+      
+      # Add Category Popover
+      addPopover(session, id = "ctgAdd", trigger = "hover",
+                 title = "Category Info",
+                 content = "
                  A Category is a general theme that survey responses can belong to. 
                  Each Category has a name and Rules to control how/when responses would 
                  fall under it.                  
                  ")
       
-      # ## Find Categories For Me Tooltip
-      # addTooltip(session, id = "find_categories", trigger = "hover",
-      #            title = "A great place to start if you don’t know what categories to add.
-      #        Opens the Topic Finder window.")
-      
-      ## Find Categories For Me Popover
+      # Find Categories For Me Popover
       addPopover(session, id = "find_categories", trigger = "hover",
-                 title = "Information",
-                 content = paste0(
-                 "A great place to start if you don’t know what categories to add.
-                 \n
-                 Opens the Topic Finder window."))
+                 title = "Find Categories for Me Info",
+                 content = "
+                 A great place to start if you don’t know what categories to add.
+                 Opens the Topic Finder window.
+                 ")
       
-      ## Number of Topics to Find Tooltip
-      addTooltip(session, id = "tf_num_topics", trigger = "focus", 
-                 title = "
+      # Number of Topics to Find Popover
+      addPopover(session, id = "tf_num_topics", trigger = "focus", 
+                 title = "Number of Topics Info",
+                 content = "
                  For the machine learning models to work, you must first specify
                  how many abstract topics there might be across all responses. The minimum 
                  is 2, and the maximum is 10.
                  ")
       
-      ## Words Not to Include Tooltip
+      # Words Not to Include Popover
       addPopover(session, id = "tf_words_not_include", trigger = "focus", 
-                 title = "Information",
+                 title = "Words Not to Include Info",
                  content = "
                  These words will be taken out of all responses before running the 
                  machine learning models. Each word/phrase MUST be separated by a comma!
                  ")
+      
+      # Convert Topics Button Popover
+      addPopover(session, id = "tf_convert_topics", trigger = "hover",
+                 title = "Convert Topics Info",
+                 content = "
+                 When pushed, each selected (checked) topic will be added as a new 
+                 category. A new category and rule will be created “manually”, and 
+                 the topic’s title and terms will be copied over.                 
+                 ")
+      
+      # Topics TabPanel Popover
+      addPopover(session, id = "topics_tab", trigger = "hover", placement = "top",
+                 title = "Topics Tab Info",
+                 content = "
+                 This tab shows each predicted topic with its most relevant terms. 
+                 The first listed term is the most relevant to the topic. 
+                 When selected, a topic can be converted to a category 
+                 (hover over “Convert Topics” button for details). 
+                 ")
+      
+      # Topics TabPanel Popover
+      addPopover(session, id = "details_tab", trigger = "hover", placement = "top",
+                 title = "Details Tab Info",
+                 content = "
+                 This tab shows the details of each predicted topic with a graph and
+                 a table. “View Graph” shows how many responses have each topic as 
+                 its best match, and the “View Table” shows the full text of each 
+                 response with its assigned (a.k.a. best matched) topic.
+                 ")
+      
+      # Default Category Popover
+      addPopover(session, id = "defaultName", trigger = "hover",
+                 title = "Default Category Info",
+                 content = "
+                 Every response will, by default, belong to this category, 
+                 unless assigned to any other Category.
+                 ")
+      
+      # Multiple Categories Per Response Popover
+      addPopover(session, id = "multCtgsPerResponse", trigger = "hover",
+                 title = "Multiple Categories Per Response Info",
+                 content = '
+                 If selected, all times any category is mentioned in each response 
+                 will be counted. If not selected, each response will be assigned 
+                 to only the first category it "matches".
+                 ')
+      
+      # # Plot Customizations Popover
+      # addPopover(session, id = "", trigger = "hover",
+      #            title = " Info",
+      #            content = "
+      #            
+      #            ")
+      
+      # # Plot Customizations Popover
+      # addPopover(session, id = "", trigger = "hover",
+      #            title = " Info",
+      #            content = "
+      #            
+      #            ")
+      
+      # # Plot Customizations Popover
+      # addPopover(session, id = "", trigger = "hover",
+      #            title = " Info",
+      #            content = "
+      #            
+      #            ")
     
     } else {
       
-      ### Remove Tooltips  ###
+      #### * Remove Tooltips ####
       
-      removeTooltip(session, id = "find_categories")
       removePopover(session, id = "find_categories")
-      removeTooltip(session, id = "ctgAdd")
-      removeTooltip(session, id = "tf_num_topics")
-      removeTooltip(session, id = "tf_words_not_include")
+      removePopover(session, id = "ctgAdd")
+      removePopover(session, id = "tf_num_topics")
+      removePopover(session, id = "tf_words_not_include")
+      removePopover(session, id = "import_title")
+      removePopover(session, id = "tf_convert_topics")
+      removePopover(session, id = "topics_tab")
+      removePopover(session, id = "details_tab")
+      removePopover(session, id = "defaultName")
+      removePopover(session, id = "multCtgsPerResponse")
+      removePopover(session, id = "")
     }
   })
   
