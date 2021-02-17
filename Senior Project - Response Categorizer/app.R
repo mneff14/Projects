@@ -135,11 +135,13 @@ ui <- fluidPage(
             # Links to All Tutorial Videos
             flowLayout(
               wellPanel(
-                actionLink("tutorial_link_demo", "Demo", icon = icon("chalkboard-teacher")),
-              ),
-              wellPanel(
-                actionLink("tutorial_link_", "Tutorial", icon = icon("video"))
+                actionLink("tutorial_link_demo", "Demo", icon = icon("chalkboard-teacher") 
+                           , onclick = "window.open('https://web.microsoftstream.com/video/fae9cf0e-0d4b-45d8-9b0f-278dd999403c')"
+                ),
               )
+              # , wellPanel(
+              #   actionLink("tutorial_link_", "Tutorial", icon = icon("video"))
+              # )
             )
     ),
     
@@ -165,24 +167,15 @@ ui <- fluidPage(
     bsModal("topic_finder", "Topic Finder", 
             trigger = "find_categories", size = "l", # Large
             
-            # Topic Finder Info Button
-            # actionLink("info_btn_topic_finder", "", icon = icon("question-circle")),
-            
             # Main Info
             # Reference for embedding link: https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
             tagList(
-              'The Topic Finder uses the “topicmodels” R package to clean the responses and implement LDA and CTM
-              Topic Modeling Machine Learning models to identify a specified number of abstract topics across all
-              responses (see ',
+              'The Topic Finder identifies a specific number of abstract topics across all responses using a process called Topic Modeling (see ',
               a("here", href = "https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf"),
               ' for full documentation).'
             ),
-            tags$h5("Although two separate models are fitted (one LDA and one CTM), only the model with the lowest
-                    mean entropy is used in prediction. (The mean entropy measures how widely the model's topics are
-                    distributed across the responses. Therefore, the lower the mean entropy, the more precise and
-                    descriptive the predicted topics are.) "),
-            
-            
+            br(),
+            br(),
             
             #### * * TF Buttons ####
             fluidRow(
@@ -1416,15 +1409,15 @@ server <- function(input, output, session) {
     
     ## Insert Topic's Title if new Category is a topic to be converted
     ctg_name <- paste0("Category ", id_add)
-    
     if (nrow(rv$topics_to_add) > 0) {
       ctg_name <- rv$topics_to_add$title[rv$topics_to_add$ctg_id == ctg_id]
     }
+    print(ctg_name)
     
     ## Create rv variable for tracking values
     ctg_num_rules_id <- paste0(ctg_id, "_num_rules")
     rv[[ctg_num_rules_id]] <- 0
-
+    
     
     #### * Insert Category UI's ####
     insertUI("#categories",
@@ -1476,7 +1469,7 @@ server <- function(input, output, session) {
     
     
     #### * Add/Remove All Category Tooltips ####
-    observeEvent(input$show_tooltips, {
+    observeEvent(input$show_tooltips,  {
       if (input$show_tooltips) {
         ## Add Category + Rule Button Tooltip
         addPopover(session, id = ctg_add_rule_button_id, trigger = "hover", 
@@ -1498,7 +1491,7 @@ server <- function(input, output, session) {
     observeEvent(input[[remove_ctg_button_id]], {
       # Removes all ui's within the category
       removeUI(
-          selector = paste0("#", ctg_id)
+        selector = paste0("#", ctg_id)
       )
       # Remove the remove button
       removeUI(
@@ -1507,7 +1500,7 @@ server <- function(input, output, session) {
       # Set all category-related id's to NA in reactive values
       rv[[ctg_id]] <- NA
       rv[[remove_ctg_id]] <- NA
-
+      
     }, ignoreInit = TRUE, once = TRUE)
     
     
@@ -1526,55 +1519,54 @@ server <- function(input, output, session) {
       
       ## Insert Topic's Title if new Category is a topic to be converted
       rule_keywords <- ""
-      
       if (nrow(rv$topics_to_add) > 0) {
         rule_keywords <- rv$topics_to_add$terms[rv$topics_to_add$ctg_id == ctg_id]
       }
       
-         
+      
       #### * * Insert Rule UI's ####
       insertUI(immediate = TRUE,
-        selector = paste0("#", ctg_id, "_rules"),
-        ui = tags$div(
-          # Has this id for removal
-          id = rule_id,
-          # Rule Title
-          h4(paste0("Rule ", id_add_rule)),
-          # Key words text input
-          textInput(rule_keywords_id,
-                    value = rule_keywords,
-                    label = paste0("Keywords for Rule ", id_add_rule)),
-          # Sorting Options list
-          selectInput(rule_sort_options_id,
-                      label = "Sorting Options",
-                      choices = c("Exactly","Contains","Begins With","Ends With"),
-                      selected = "Contains",
-                      width = 120),
-          # Standardize check box that will, when checked, set all keywords and responses to lowercase
-          checkboxInput(rule_standardize_id, "Standardize All to Lowercase", FALSE),
-          # Radio buttons indicating whether to search through responses by "Response" or by "Word"
-          radioButtons(rule_search_by_id, label = "Search By", 
-                       selected = "Response", choices = c("Response","Word")),
-          hr()
-        )
+               selector = paste0("#", ctg_id, "_rules"),
+               ui = tags$div(
+                 # Has this id for removal
+                 id = rule_id,
+                 # Rule Title
+                 h4(paste0("Rule ", id_add_rule)),
+                 # Key words text input
+                 textInput(rule_keywords_id,
+                           value = rule_keywords,
+                           label = paste0("Keywords for Rule ", id_add_rule)),
+                 # Sorting Options list
+                 selectInput(rule_sort_options_id,
+                             label = "Sorting Options",
+                             choices = c("Exactly","Contains","Begins With","Ends With"),
+                             selected = "Contains",
+                             width = 120),
+                 # Standardize check box that will, when checked, set all keywords and responses to lowercase
+                 checkboxInput(rule_standardize_id, "Standardize All to Lowercase", FALSE),
+                 # Radio buttons indicating whether to search through responses by "Response" or by "Word"
+                 radioButtons(rule_search_by_id, label = "Search By", 
+                              selected = "Response", choices = c("Response","Word")),
+                 hr()
+               )
       )
-
+      
       ## Set rule id in reactive values to TRUE when rule is created
       rv[[rule_id]] <- TRUE
       
       ## Increase number of rules in reactive values
       rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] + 1
-
+      
       
       ## Insert Remove Rule Button
       insertUI(immediate = TRUE,
-        selector = paste0("#", ctg_id, "_remove_rule_buttons"),
-        ui = tags$div(
-          # For removing the button
-          id = remove_rule_id,
-          # The Remove Rule button
-          actionButton(remove_rule_button_id, paste0("- Rule ", id_add_rule))
-        )
+               selector = paste0("#", ctg_id, "_remove_rule_buttons"),
+               ui = tags$div(
+                 # For removing the button
+                 id = remove_rule_id,
+                 # The Remove Rule button
+                 actionButton(remove_rule_button_id, paste0("- Rule ", id_add_rule))
+               )
       )
       
       ## Set rule remove button id in reactive values to TRUE
@@ -1645,11 +1637,10 @@ server <- function(input, output, session) {
         rv[[remove_rule_id]] <- NA
         # Decrease number of rules in reactive values
         rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] - 1
-
+        
       }, ignoreInit = TRUE, once = TRUE)
       
     })
-
   })
   
   
@@ -1783,6 +1774,7 @@ server <- function(input, output, session) {
       
       # Loop through each topic
       for (t in 1:n) {
+      # lapply(1:n, function(t) { # This breaks it!!
         
         # Proceed only if the topic is currently selected (checked)
         if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
@@ -1791,18 +1783,18 @@ server <- function(input, output, session) {
           # (by pushing existing action buttons and updating the created UI)
           if (rv$file_is_valid == TRUE) {
             
+            ## Without Local
+            
             # Retrieve topic info (from id's)
             topic_title_id <- paste0("topic_title_", t)
             topic_terms_id <- paste0("topic_terms_", t)
             title <- input[[topic_title_id]]
             terms <- rv[[topic_terms_id]]
             new_ctg_id <- paste0("ctg_", current_ctg_id)
-            
+
             # Click the 'Add Category' button
-            local({ 
-              click("ctgAdd", asis = TRUE) 
-            })
-            
+            click("ctgAdd", asis = TRUE)
+
             # Save variables to data frame
             new_topic_to_add <- data.frame(
               t = t,
@@ -1812,12 +1804,15 @@ server <- function(input, output, session) {
               rule_id = "",
               buttons_pushed = FALSE
             )
-            
+
             # Add new topic variables to data frame reactive value
             rv$topics_to_add <- bind_rows(rv$topics_to_add, new_topic_to_add)
-            
+
             # Increment counter
             current_ctg_id <- current_ctg_id + 1
+
+            
+            ## With Local Doesn't work very well!
             
           } else {
             # No file imported
@@ -1829,6 +1824,7 @@ server <- function(input, output, session) {
         
         # Increment Progress Bar
         incProgress(amount = prg_incr)
+        
       }
       
       # Show pop-up message to select topics before pushing button
@@ -1852,14 +1848,14 @@ server <- function(input, output, session) {
       if (str_length(rv$topics_to_add$rule_id[t]) > 0 & 
           rv$topics_to_add$buttons_pushed[t] == FALSE) {
         
+        
         # Push the "+ Rule" button
-        local({
-          click(rv$topics_to_add$rule_id[t], asis = TRUE)
-        })
+        click(rv$topics_to_add$rule_id[t], asis = TRUE)
         
         # Make sure the "+ Rule" button isn't pushed twice
         rv$topics_to_add$buttons_pushed[t] <- TRUE
         
+
       } else { } # Nothing Happens
     }
   })
