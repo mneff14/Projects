@@ -131,6 +131,15 @@ ui <- function(request) {
     ),
     
     
+    br(),
+    
+    #### Show Reactive Values ####
+    wellPanel(
+      h3("Reactive Values"),
+      verbatimTextOutput("show_rvs", placeholder = TRUE), 
+      style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
+    ),
+    
     
     #### Main Panel ####
     mainPanel(
@@ -698,17 +707,43 @@ server <- function(input, output, session) {
   #### Reactive Values ####
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
-  rv <- reactiveValues(num_topics = 0,
-                       tf_check_topics = 0,
-                       file_is_valid = FALSE,
-                       topics_to_add = data.frame(
-                         t = integer(),
-                         title = character(),
-                         terms = character(),
-                         ctg_id = character(),
-                         rule_id = character(),
-                         buttons_pushed = logical()
-                       ))
+  rv <- reactiveValues(
+    file_is_valid = FALSE,
+    all_categories = data.frame(
+      id_add = character(),
+      ctg_id = character(),
+      ctg_num_rules = integer(),
+      ctg_add_rule_button_id = character(),
+      remove_ctg_id = character(),
+      remove_ctg_button_id = character(),
+      ctg_name_id = character(),
+      ctg_name = character()
+    ),
+    all_rules = data.frame(
+      id_add_rule = character(),                
+      rule_id = character(),                
+      rule_ctg_id = character(),                
+      remove_rule_id = character(),                
+      remove_rule_button_id = character(),                
+      rule_keywords_id = character(),                
+      rule_keywords = character(),                
+      rule_sort_options_id = character(),  
+      rule_sort_options = character(),                
+      rule_standardize_id = character(),                
+      rule_standardize = logical(),                
+      rule_search_by_id = character(),  
+      rule_search_by = character()                
+    ),
+    num_topics = 0,
+    topics_to_add = data.frame(
+      t = integer(),
+      title = character(),
+      terms = character(),
+      ctg_id = character(),
+      rule_id = character(),
+      buttons_pushed = logical()
+      )
+  )
 
   
   
@@ -732,7 +767,7 @@ server <- function(input, output, session) {
     # Reload all reactive values
     rv <- state$values$all_reactive_values
     
-    print(rv)
+    # print(rv)
   })
   
   
@@ -1432,7 +1467,7 @@ server <- function(input, output, session) {
     # Plots the table of the data
     return(plotTable())
   })
-             
+  
   
   
   
@@ -1448,16 +1483,13 @@ server <- function(input, output, session) {
     remove_ctg_id <- paste0("remove_ctg", id_add)
     remove_ctg_button_id <- paste0("remove_ctg_button_", id_add)
     
-    ## Insert Topic's Title if new Category is a topic to be converted
-    ctg_name <- paste0("Category ", id_add)
+    ## Define Initial Variables
+    ctg_init_name <- paste0("Category ", id_add)
     if (nrow(rv$topics_to_add) > 0) {
-      ctg_name <- rv$topics_to_add$title[rv$topics_to_add$ctg_id == ctg_id]
+      # Insert Topic's Title if new Category is a topic to be converted
+      ctg_init_name <- rv$topics_to_add$title[rv$topics_to_add$ctg_id == ctg_id]
     }
-    print(ctg_name)
     
-    ## Create rv variable for tracking values
-    ctg_num_rules_id <- paste0(ctg_id, "_num_rules")
-    rv[[ctg_num_rules_id]] <- 0
     
     
     #### * Insert Category UI's ####
@@ -1470,7 +1502,7 @@ server <- function(input, output, session) {
                h3(paste0("Category ", id_add)),
                # The category name
                textInput(ctg_name_id, 
-                         ctg_name, 
+                         ctg_init_name, 
                          label = paste0("Category ", id_add, " Name")),
                # Layout for the Add and Remove Rules action buttons
                fluidRow(
@@ -1489,14 +1521,8 @@ server <- function(input, output, session) {
                )
              ), immediate = TRUE
     )
-    ## Set category id's in reactive values to TRUE when category is created
-    rv[[ctg_id]] <- TRUE
     
-    ## Save values to rv for inserting new Topics
-    rv$topics_to_add$rule_id[rv$topics_to_add$ctg_id == ctg_id] <- ctg_add_rule_button_id
-    
-    
-    #### * Insert Remove Category Button ####
+    ## Insert Remove Category Button ##
     insertUI(
       selector = "#removeCtgButton",
       ui = tags$div(
@@ -1505,9 +1531,33 @@ server <- function(input, output, session) {
         actionButton(remove_ctg_button_id, paste0("Remove Category ", id_add))
       )
     )
-    ## Set category remove button id in reactive values to TRUE
-    rv[[remove_ctg_id]] <- TRUE
     
+    
+    #### * Update Category RV's ####
+    
+    ## Append new category id's and initial values to reactive value data frame
+    rv$all_categories = bind_rows(rv$all_categories,
+                                  data.frame(
+                                    id_add = id_add,
+                                    ctg_id = ctg_id,
+                                    remove_ctg_id = remove_ctg_id,
+                                    ctg_num_rules = 0,
+                                    ctg_add_rule_button_id = ctg_add_rule_button_id,
+                                    remove_ctg_button_id = remove_ctg_button_id,
+                                    ctg_name_id = ctg_name_id,
+                                    ctg_name = ctg_init_name
+                                  )    
+    )
+    
+    ## Save other values to rv for inserting new Topics
+    rv$topics_to_add$rule_id[rv$topics_to_add$ctg_id == ctg_id] <- ctg_add_rule_button_id
+    
+    ## Update Category Name in rv data frame when changed
+    observeEvent(input[[ctg_name_id]], {
+      rv$all_categories$ctg_name[rv$all_categories$ctg_id == ctg_id] <- input[[ctg_name_id]]
+    })
+    
+
     
     #### * Add/Remove All Category Tooltips ####
     observeEvent(input$show_tooltips,  {
@@ -1527,6 +1577,7 @@ server <- function(input, output, session) {
     })
     
     
+    
     #### * Observe Event -- Remove Category ####
     ## Removes all elements in category when remove category button is pushed
     observeEvent(input[[remove_ctg_button_id]], {
@@ -1538,31 +1589,39 @@ server <- function(input, output, session) {
       removeUI(
         selector = paste0("#", remove_ctg_id)
       )
-      # Set all category-related id's to NA in reactive values
-      rv[[ctg_id]] <- NA
-      rv[[remove_ctg_id]] <- NA
+      # Remove category from the Category rv data frame
+      rv$all_categories <- rv$all_categories[!(rv$all_categories$ctg_id == ctg_id), ]
       
     }, ignoreInit = TRUE, once = TRUE)
+    
     
     
     #### * Observe Event -- Add Rule ####
     ## Add all rule UI's when category Add Rule button is pushed
     observeEvent(input[[ctg_add_rule_button_id]], {
       ## Make id's for rule UI's and the rule itself
-      id_add_rule <- input[[ctg_add_rule_button_id]]
+      id_add_rule <- paste0(input[[ctg_add_rule_button_id]])
       rule_id <- paste0("rule_", id_add_rule, ctg_id)
+      rule_ctg_id <- ctg_id
+      remove_rule_id <- paste0("remove_rule_", id_add_rule, ctg_id)
+      remove_rule_button_id <- paste0("remove_rule_button_", id_add_rule, ctg_id)
       rule_keywords_id <- paste0(rule_id, "_keywords")
       rule_sort_options_id <- paste0(rule_id, "_sort_options")
       rule_standardize_id <- paste0(rule_id, "_standardize")
       rule_search_by_id <- paste0(rule_id, "_search_by")
-      remove_rule_id <- paste0("remove_rule_", id_add_rule, ctg_id)
-      remove_rule_button_id <- paste0("remove_rule_button_", id_add_rule, ctg_id)
       
-      ## Insert Topic's Title if new Category is a topic to be converted
-      rule_keywords <- ""
+      ## Define Initial Variables
+      rule_init_keywords <- ""
       if (nrow(rv$topics_to_add) > 0) {
-        rule_keywords <- rv$topics_to_add$terms[rv$topics_to_add$ctg_id == ctg_id]
+        # Insert Topic's Title if new Category is a topic to be converted
+        rule_init_keywords <- rv$topics_to_add$terms[rv$topics_to_add$ctg_id == ctg_id]
       }
+      rule_choices_sort_options <- c("Exactly","Contains","Begins With","Ends With")
+      rule_init_sort_options <- "Contains"
+      rule_init_standardize <- TRUE
+      rule_choices_search_by <- c("Response","Word")
+      rule_init_search_by <- "Response"
+      
       
       
       #### * * Insert Rule UI's ####
@@ -1575,29 +1634,25 @@ server <- function(input, output, session) {
                  h4(paste0("Rule ", id_add_rule)),
                  # Key words text input
                  textInput(rule_keywords_id,
-                           value = rule_keywords,
+                           value = rule_init_keywords,
                            label = paste0("Keywords for Rule ", id_add_rule)),
                  # Sorting Options list
                  selectInput(rule_sort_options_id,
                              label = "Sorting Options",
-                             choices = c("Exactly","Contains","Begins With","Ends With"),
-                             selected = "Contains",
-                             width = 120),
+                             choices = rule_choices_sort_options,
+                             selected = rule_init_sort_options,
+                             width = 120 ),
                  # Standardize check box that will, when checked, set all keywords and responses to lowercase
-                 checkboxInput(rule_standardize_id, "Standardize All to Lowercase", FALSE),
+                 checkboxInput(rule_standardize_id, 
+                               label = "Standardize All to Lowercase", 
+                               value =  rule_init_standardize),
                  # Radio buttons indicating whether to search through responses by "Response" or by "Word"
                  radioButtons(rule_search_by_id, label = "Search By", 
-                              selected = "Response", choices = c("Response","Word")),
+                              choices = rule_choices_search_by,
+                              selected = rule_init_search_by ),
                  hr()
                )
       )
-      
-      ## Set rule id in reactive values to TRUE when rule is created
-      rv[[rule_id]] <- TRUE
-      
-      ## Increase number of rules in reactive values
-      rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] + 1
-      
       
       ## Insert Remove Rule Button
       insertUI(immediate = TRUE,
@@ -1610,8 +1665,51 @@ server <- function(input, output, session) {
                )
       )
       
-      ## Set rule remove button id in reactive values to TRUE
-      rv[[remove_rule_id]] <- TRUE
+    
+      #### * * Update Rule RV's ####
+      
+      ## Append new rule id's and initial values to reactive value data frame
+      rv$all_rules = bind_rows(rv$all_rules,
+                                    data.frame(
+                                      id_add_rule = id_add_rule,
+                                      rule_id = rule_id,
+                                      rule_ctg_id = rule_ctg_id,
+                                      remove_rule_id = remove_rule_id,
+                                      remove_rule_button_id = remove_rule_button_id,
+                                      rule_keywords_id = rule_keywords_id,
+                                      rule_keywords = rule_init_keywords,
+                                      rule_sort_options_id = rule_sort_options_id,
+                                      rule_sort_options = rule_init_sort_options,
+                                      rule_standardize_id = rule_standardize_id,
+                                      rule_standardize = rule_init_standardize,
+                                      rule_search_by_id = rule_search_by_id,
+                                      rule_search_by = rule_init_search_by                                  
+                                    )
+      )
+      
+      ## Increase number of rules in Category rv data frame
+      rv$all_categories$ctg_num_rules[rv$all_categories$ctg_id == ctg_id] <- rv$all_categories$ctg_num_rules[rv$all_categories$ctg_id == ctg_id] + 1
+      
+      ## Update Keywords in rv data frame when changed
+      observeEvent(input[[rule_keywords_id]], {
+        rv$all_rules$rule_keywords[rv$all_rules$rule_id == rule_id] <- input[[rule_keywords_id]]
+      })
+      
+      ## Update Sort Options in rv data frame when changed
+      observeEvent(input[[rule_sort_options_id]], {
+        rv$all_rules$rule_sort_options[rv$all_rules$rule_id == rule_id] <- input[[rule_sort_options_id]]
+      })
+      
+      ## Update Standardize in rv data frame when changed
+      observeEvent(input[[rule_standardize_id]], {
+        rv$all_rules$rule_standardize[rv$all_rules$rule_id == rule_id] <- input[[rule_standardize_id]]
+      })
+      
+      ## Update Search By in rv data frame when changed
+      observeEvent(input[[rule_search_by_id]], {
+        rv$all_rules$rule_search_by[rv$all_rules$rule_id == rule_id] <- input[[rule_search_by_id]]
+      })
+      
       
       
       #### * * Add/Remove All Rule Tooltips ####
@@ -1662,6 +1760,7 @@ server <- function(input, output, session) {
       })
       
       
+      
       #### * * Observe Event -- Remove Rule ####
       ## Removes all elements in rule when remove rule button is pushed
       observeEvent(input[[remove_rule_button_id]], {
@@ -1673,11 +1772,11 @@ server <- function(input, output, session) {
         removeUI(
           selector = paste0("#", remove_rule_id)
         )
-        # Set rule and remove rule button id's to NULL in reactive values
-        rv[[rule_id]] <- NA
-        rv[[remove_rule_id]] <- NA
-        # Decrease number of rules in reactive values
-        rv[[ctg_num_rules_id]] <- rv[[ctg_num_rules_id]] - 1
+        # Remove rule from the Rule rv data frame
+        rv$all_rules <- rv$all_rules[!(rv$all_rules$rule_id == rule_id), ]
+        
+        # Decrease number of rules in Category rv data frame
+        rv$all_categories$ctg_num_rules[rv$all_categories$ctg_id == ctg_id] <- rv$all_categories$ctg_num_rules[rv$all_categories$ctg_id == ctg_id] - 1
         
       }, ignoreInit = TRUE, once = TRUE)
       
@@ -2282,6 +2381,11 @@ server <- function(input, output, session) {
   }, options = list(pageLength = 10))
   
   
+  #### Render RV Table ####
+  output$show_rvs <- renderPrint({
+    # Show all reactive values as a data table
+    print(reactiveValuesToList(rv))
+  })
 }
 
 
