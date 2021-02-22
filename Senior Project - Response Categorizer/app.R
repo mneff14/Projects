@@ -356,34 +356,6 @@ ui <- function(request) {
                                   h4("To Save Plot:"),
                                   h5(em("Right click (Ctrl + Click for Macs) on plot and select 'Save Image'")),
                                   br(),
-                                  # -- NOT WORKING -- 
-                                  # # Save plot button
-                                  # downloadButton("downloadPlot", label = "Download Plot "),
-                                  # h5(strong("Save As")),
-                                  # # Save As
-                                  # fluidRow(
-                                  #   column(width = 7,
-                                  #     # Plot Title
-                                  #     textInput("plotName", label = NA, value = "plot")),
-                                  #   column(width = 5,
-                                  #     # Extension
-                                  #     selectInput("extension", label = NA, selected = ".png",
-                                  #                 choices = c(".png",".jpeg",".pdf",".eps",".ps",".tex",
-                                  #                             ".tiff",".bmp",".svg",".wmf")))
-                                  # ),
-                                  # fluidRow(
-                                  #   column(width = 4,
-                                  #     # Plot Width
-                                  #     numericInput("plotWidth", label = "Width", value = 7, width = "100%", 
-                                  #                  min = 1, max = 50, step = 1)),
-                                  #   column(width = 4, 
-                                  #     # Plot Height
-                                  #     numericInput("plotHeight", label = "Height", value = 5, width = "100%", 
-                                  #                  min = 1, max = 50, step = 1)),
-                                  #   column(width = 4,
-                                  #     # Width Units
-                                  #     selectInput("units", label = "Units", selected = "in", width = "100%",
-                                  #                 choices = c("in","cm","mm")))
                                   fluidRow(
                                     column(width = 6,
                                            # Select a theme for the plot
@@ -811,12 +783,17 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    ## Variables
+    ## Initial Variables
     N <- input$ctgAdd # Number of categories
     num_responses <- nrow(data) # Number of responses
     default_ctg_name <- paste0(input$defaultName)
     multiple_categories_per_response <- input$multCtgsPerResponse # If false, will assign one ctg per response
-
+    
+    
+    ## Read in reactive value data frames containing current data for all categories and rules
+    all_categories <- rv$all_categories 
+    all_rules <- rv$all_rules
+    
     
     ## Add a new Default Category column to the variables data
     default_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>% 
@@ -825,19 +802,19 @@ server <- function(input, output, session) {
     data <- bind_cols(data, default_column)
     
     
-    ## Reset all response match variables in reactive values to FALSE
-    for (r in 1:num_responses) {
-      r_match_id <- paste0("response_", r, "_matched")
-      rv[[r_match_id]] <- FALSE
-    }
+    # ## Reset all response match variables in reactive values to FALSE
+    # for (r in 1:num_responses) {
+    #   r_match_id <- paste0("response_", r, "_matched")
+    #   rv[[r_match_id]] <- FALSE
+    # }
     
     
     ## Function that returns true if keyword and match_value match according to sort_option
-    check_match <- function(keyword = NA, match_value = NA, standardize = FALSE, sort_option = "Contains") {
+    check_match <- function(keyword = NA, match_value = NA, standardize = TRUE, sort_option = "Contains") {
       ## Variable to be returned
       found_match <- FALSE
       ## Make response and keyword lower-case if standardize is true
-      if (!is.na(match_value) & keyword != "") { 
+      if (!is.na(match_value) & keyword != "" & !is.na(keyword)) { 
         if (standardize) {
           match_value <- str_to_lower(match_value)
           keyword <- str_to_lower(keyword)
@@ -873,122 +850,236 @@ server <- function(input, output, session) {
     }
     
     
-    ## Loop through each category to create needed data frames
+    ## Loop through each current Category (i.e. every row in the "all_categories" rv data frame)
+    ## Will add a new column to data if at least one rule has been added
     for (c in 1:N) {
-      print(paste0("======== Category ", c, " ========"))
-      ## Proceed if category hasn't been removed (id in reactive values is TRUE)
-      current_ctg_id <- paste0("ctg_",c)
-      if (!is.na(rv[[current_ctg_id]])) {
-        ## Category variables
-        currentCtgName <- eval(parse(text = paste0("input$ctg_", c, "_name")))
-        num_rules <- eval(parse(text = paste0("input$ctg_", c, "_add_rule")))
-
-        ## Proceed if rules have been added
-        if (num_rules) {
-          ## Create a new column to be added to responses data to hold whether the response lies within the category
-          new_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>% 
-            `colnames<-`(paste0(currentCtgName))
-          new_column[,1] <- 0 # Values set to zero and not FALSE for functionality
-  
-          ## Create an empty data frame for this category containing all rule inputs
-          rule_inputs <- data.frame(matrix(nrow = 0, ncol = 4)) %>%
-            `colnames<-`(c("Keywords","Sort_Option","Standardize","Search_By"))
-  
-          ## Loop through each rule in the current category and make data set for all rule inputs
-          for (u in 1:num_rules) {
-            ## Proceed if rule hasn't been removed (id in reactive values is TRUE)
-            current_rule_id <- paste0("rule_", u, "ctg_", c)
-            if (!is.na(rv[[current_rule_id]])) {
-              ## Rule variables
-              rule_keywords_id <- paste0(current_rule_id, "_keywords")
-              rule_sort_options_id <- paste0(current_rule_id, "_sort_options")
-              rule_standardize_id <- paste0(current_rule_id, "_standardize")
-              rule_search_by_id <- paste0(current_rule_id, "_search_by")
-              current_keywords <- eval(parse(text = paste0("input$", rule_keywords_id)))
-              current_sort_option <- eval(parse(text = paste0("input$", rule_sort_options_id)))
-              standardize_all <- eval(parse(text = paste0("input$", rule_standardize_id)))
-              current_search_by <- eval(parse(text = paste0("input$", rule_search_by_id)))
-    
-              ## Proceed if there are any keyowrds in this rule
-              if (current_keywords != "") {
-                # Create a new data frame to be added to the category's keywords data
-                new_rule_inputs <- stri_extract_all_words(current_keywords) %>% # Make keywords a list of words
-                  data.frame(stringsAsFactors = FALSE) %>%  # Turn list into a data frame
-                  `colnames<-`("Keywords") %>%              # Change the name of the first column
-                  mutate(Sort_Option = current_sort_option, # New column for sorting option
-                         Standardize = standardize_all,     # New column indicating whether to standardize
-                         Search_By = current_search_by)     
-                # Add the new rule inputs to the existing rule inputs
-                rule_inputs <- bind_rows(rule_inputs, new_rule_inputs)
-              }
-            }
-          }
-
-          ## Proceed if the rule inputs have been added
-          num_rule_inputs <- nrow(rule_inputs)
-          if (num_rule_inputs > 0) {
-            ## Loop through all keywords and +1 if any match the category's keywords (according to sort option)
-            for (k in 1:num_rule_inputs) {
-              ## Key Input variables
-              current_keyword <- rule_inputs$Keywords[k]
-              current_sort_option <- rule_inputs$Sort_Option[k]
-              standardize <- rule_inputs$Standardize[k]
-              current_search_by <- rule_inputs$Search_By[k]
-              print(paste0("----- ", current_keyword, " -----"))
-
-              ## Loop through all responses
-              for (r in 1:num_responses) {
-                ## Matching variables
-                current_response <- data$Responses[r]
-                r_match_id <- paste0("response_", r, "_matched")
-                r_has_match <- rv[[r_match_id]]
-                split_response <- FALSE
-                match_found <- FALSE
+      
+      # Initial Current Category variables (for convenience and readability)
+      # Each of these will be distinguished with a "."
+      ctg.id <- all_categories$ctg_id[c]
+      ctg.num_rules <- all_categories$ctg_num_rules[c]
+      ctg.name <- paste0(all_categories$ctg_name[c])
+      
+      # Proceed if this category has any rules
+      if (ctg.num_rules > 0) {
+        
+        # Create a new Category column to track whether each response is assigned to this category
+        new_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>%
+          `colnames<-`(ctg.name) # Name column after Category's current name
+        new_column[,1] <- 0            # Values set to zero (not FALSE) by default
+        
+        # Retrieve all rule data for this category
+        ctg.all_rules <- all_rules %>% 
+          filter(rule_ctg_id == ctg.id)
+        
+        # glimpse(ctg.all_rules)
+        
+        # Loop through each of this category's Rules
+        # (To update the new_column and default column values if matches are found)
+        for (r in 1:ctg.num_rules) {
+          
+          # Initial Current Rule variables (for convenience and readability)
+          # Each of these will be distinguished with a "."
+          rule.sort_option <- ctg.all_rules$rule_sort_options[r]
+          rule.standardize <- ctg.all_rules$rule_standardize[r]
+          rule.search_by <- ctg.all_rules$rule_search_by[r]
+          rule.keywords <- ctg.all_rules$rule_keywords[r] %>% 
+            stri_extract_all_words() %>% # Split the keywords into list of words
+            as.data.frame() %>%          # Convert to data frame
+            `colnames<-`("Keyword")     # Change column name
+            
+          # glimpse(rule.keywords)
+          
+          # Compare each keyword to every response
+          apply (rule.keywords, 1, function(k) {
+            
+            # Initial Variables
+            current_keyword <- k[1][1]
+            
+            # Proceed if the keyword is not blank
+            if (!is.na(current_keyword)) {
+              
+              # Loop through each row in the response data
+              #   - Column 1: Response text
+              #   - Column 2: Default Category
+              apply(data, 1, function(i) {
                 
-                ## Will skip response if only one ctg per response is specified AND response has been assigned a ctg 
-                if (multiple_categories_per_response | !r_has_match) {
-                  ## Split Response into individual words if specified by Search_By
-                  if (current_search_by == "Word") {
-                    split_response <- stri_extract_all_words(current_response) %>% 
-                      data.frame(stringsAsFactors = FALSE) %>% 
-                      `colnames<-`("Response_Words")
-  
-                    ## Loop through words in split response and check for matches
-                    for (w in 1:nrow(split_response)) {
-                      current_response_word <- split_response$Response_Words[w]
-                      # Pass the check match function the current word in response
-                      match_found <- check_match(match_value = current_response_word, keyword = current_keyword, 
-                                                  standardize = standardize, sort_option = current_sort_option)
-                    }
-                  } else {
-                    ## Pass the check match function the entire currernt response
-                    match_found <- check_match(match_value = current_response, keyword = current_keyword, 
-                                                standardize = standardize, sort_option = current_sort_option)
-                  }
-                  ## Update new_column and responses data if a match was found
-                  if (match_found) {
-                    print("Match!")
-                    # Specify in reactive variables that response has a match
-                    rv[[r_match_id]] <- TRUE
-                    # +1 to current category column
-                    new_column[r,1] <- new_column[r,1] + 1 
-                    # Remove response from the Default Category 
-                    data[r,2] <- 0
-                  } else {
-                    # Specify in reactive variables that response is not matched
-                    rv[[r_match_id]] <- FALSE
-                  }
+                response <- i[1]
+                
+                # Multiple CTG's per Response  (This loop)
+                #   - TRUE:  Count ALL times the keyword matches the match_value
+                #   - FALSE: Count FIRST time the keyword matches the match_value
+                
+                # Search By  (This loop)
+                #   - WORD:     Match_value is each word in response
+                #   - RESPONSE: Match_value is entire response
+                
+                # Sort Option  (check_match())
+                #   - CONTAINS:     Match_value contains keyword
+                #   - EXACTLY:      Match_value equals keyword
+                #   - BEGINS WITH:  Match_value begins with keyword
+                #   - ENDS WITH:    Match_value ends with keyword
+                
+            
+                if (multiple_categories_per_response) {
+                  
+                  print("Count the number of mentions per response")
+                  
                 } else {
-                  print("No more than 1 category per response. Response has ctg. Skip response.")
+                  # Check if the current keyword "matches" the current response text
+                  match_found <- check_match(keyword = current_keyword, 
+                                             match_value = response, 
+                                             standardize = rule.standardize, 
+                                             sort_option = rule.sort_option)
+                  
+                  if (match_found) {
+                    print(paste0('"', current_keyword, '" matches response; adding to ', ctg.name))
+                  }
                 }
-              }
+                
+                
+                # Split the response into individual words if the "Search By" option is "Word"
+                # if (rule.search_by == "Word") {
+                #   response <- i[1] %>%
+                #     stri_extract_all_words() %>% # Split the response into list of words
+                #     as.data.frame() %>%          # Convert to data frame
+                #     `colnames<-`("Response_Words")     # Change column name
+                # } else {
+                #   response <- i[1]
+                # }
+              })
             }
-          }
-          ## Add the new column to the responses data after all of the for loops
-          data <- bind_cols(data, new_column)
+          })
         }
-      }
+        
+        # Add the new column to the responses data
+        data <- bind_cols(data, new_column)
+        
+      } else { } # If there are no rules for this category, nothing happens
     }
+    
+    
+    # glimpse(data)
+
+    
+    # ## Loop through each category to create needed data frames
+    # for (c in 1:N) {
+    #   
+    #   print(paste0("======== Category ", c, " ========"))
+    #   
+    #   ## Proceed if category hasn't been removed (id in reactive values is TRUE)
+    #   current_ctg_id <- paste0("ctg_",c)
+    #   if (!is.na(rv[[current_ctg_id]])) {
+    #     ## Category variables
+    #     currentCtgName <- eval(parse(text = paste0("input$ctg_", c, "_name")))
+    #     num_rules <- eval(parse(text = paste0("input$ctg_", c, "_add_rule")))
+    # 
+    #     ## Proceed if rules have been added
+    #     if (num_rules) {
+    #       ## Create a new column to be added to responses data to hold whether the response lies within the category
+    #       new_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>% 
+    #         `colnames<-`(paste0(currentCtgName))
+    #       new_column[,1] <- 0 # Values set to zero and not FALSE for functionality
+    # 
+    #       ## Create an empty data frame for this category containing all rule inputs
+    #       rule_inputs <- data.frame(matrix(nrow = 0, ncol = 4)) %>%
+    #         `colnames<-`(c("Keywords","Sort_Option","Standardize","Search_By"))
+    # 
+    #       ## Loop through each rule in the current category and make data set for all rule inputs
+    #       for (u in 1:num_rules) {
+    #         ## Proceed if rule hasn't been removed (id in reactive values is TRUE)
+    #         current_rule_id <- paste0("rule_", u, "ctg_", c)
+    #         if (!is.na(rv[[current_rule_id]])) {
+    #           ## Rule variables
+    #           rule_keywords_id <- paste0(current_rule_id, "_keywords")
+    #           rule_sort_options_id <- paste0(current_rule_id, "_sort_options")
+    #           rule_standardize_id <- paste0(current_rule_id, "_standardize")
+    #           rule_search_by_id <- paste0(current_rule_id, "_search_by")
+    #           current_keywords <- eval(parse(text = paste0("input$", rule_keywords_id)))
+    #           current_sort_option <- eval(parse(text = paste0("input$", rule_sort_options_id)))
+    #           standardize_all <- eval(parse(text = paste0("input$", rule_standardize_id)))
+    #           current_search_by <- eval(parse(text = paste0("input$", rule_search_by_id)))
+    # 
+    #           ## Proceed if there are any keyowrds in this rule
+    #           if (current_keywords != "") {
+    #             # Create a new data frame to be added to the category's keywords data
+    #             new_rule_inputs <- stri_extract_all_words(current_keywords) %>% # Make keywords a list of words
+    #               data.frame(stringsAsFactors = FALSE) %>%  # Turn list into a data frame
+    #               `colnames<-`("Keywords") %>%              # Change the name of the first column
+    #               mutate(Sort_Option = current_sort_option, # New column for sorting option
+    #                      Standardize = standardize_all,     # New column indicating whether to standardize
+    #                      Search_By = current_search_by)     
+    #             # Add the new rule inputs to the existing rule inputs
+    #             rule_inputs <- bind_rows(rule_inputs, new_rule_inputs)
+    #           }
+    #         }
+    #       }
+    # 
+    #       ## Proceed if the rule inputs have been added
+    #       num_rule_inputs <- nrow(rule_inputs)
+    #       if (num_rule_inputs > 0) {
+    #         ## Loop through all keywords and +1 if any match the category's keywords (according to sort option)
+    #         for (k in 1:num_rule_inputs) {
+    #           ## Key Input variables
+    #           current_keyword <- rule_inputs$Keywords[k]
+    #           current_sort_option <- rule_inputs$Sort_Option[k]
+    #           standardize <- rule_inputs$Standardize[k]
+    #           current_search_by <- rule_inputs$Search_By[k]
+    #           print(paste0("----- ", current_keyword, " -----"))
+    # 
+    #           ## Loop through all responses
+    #           for (r in 1:num_responses) {
+    #             ## Matching variables
+    #             current_response <- data$Responses[r]
+    #             r_match_id <- paste0("response_", r, "_matched")
+    #             r_has_match <- rv[[r_match_id]]
+    #             split_response <- FALSE
+    #             match_found <- FALSE
+    #             
+    #             ## Will skip response if only one ctg per response is specified AND response has been assigned a ctg 
+    #             if (multiple_categories_per_response | !r_has_match) {
+    #               ## Split Response into individual words if specified by Search_By
+    #               if (current_search_by == "Word") {
+    #                 split_response <- stri_extract_all_words(current_response) %>% 
+    #                   data.frame(stringsAsFactors = FALSE) %>% 
+    #                   `colnames<-`("Response_Words")
+    # 
+    #                 ## Loop through words in split response and check for matches
+    #                 for (w in 1:nrow(split_response)) {
+    #                   current_response_word <- split_response$Response_Words[w]
+    #                   # Pass the check match function the current word in response
+    #                   match_found <- check_match(match_value = current_response_word, keyword = current_keyword, 
+    #                                               standardize = standardize, sort_option = current_sort_option)
+    #                 }
+    #               } else {
+    #                 ## Pass the check match function the entire current response
+    #                 match_found <- check_match(match_value = current_response, keyword = current_keyword, 
+    #                                             standardize = standardize, sort_option = current_sort_option)
+    #               }
+    #               ## Update new_column and responses data if a match was found
+    #               if (match_found) {
+    #                 print("Match!")
+    #                 # Specify in reactive variables that response has a match
+    #                 rv[[r_match_id]] <- TRUE
+    #                 # +1 to current category column
+    #                 new_column[r,1] <- new_column[r,1] + 1 
+    #                 # Remove response from the Default Category 
+    #                 data[r,2] <- 0
+    #               } else {
+    #                 # Specify in reactive variables that response is not matched
+    #                 rv[[r_match_id]] <- FALSE
+    #               }
+    #             } else {
+    #               print("No more than 1 category per response. Response has ctg. Skip response.")
+    #             }
+    #           }
+    #         }
+    #       }
+    #       ## Add the new column to the responses data after all of the for loops
+    #       data <- bind_cols(data, new_column)
+    #     }
+    #   }
+    # }
     
     return(data)
     
