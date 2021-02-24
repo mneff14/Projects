@@ -774,7 +774,7 @@ server <- function(input, output, session) {
   #### sortData_GG() ####
   ## Sorts the data
   sortData_GG <- reactive({
-    
+
     ## Initiate a Progress Bar
     withProgress(message = "Initiating", min = 0, max = 1, value = 0, {
       
@@ -824,7 +824,6 @@ server <- function(input, output, session) {
               pattern <- paste0(keyword,"$")
             } 
           }
-          
           ## Check for an exact match
           if (sort_option == "Exactly") {
             if (match_value == keyword) {
