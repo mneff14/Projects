@@ -134,11 +134,11 @@ ui <- function(request) {
     br(),
     
     #### Show Reactive Values ####
-    # wellPanel(
-    #   h3("Reactive Values"),
-    #   verbatimTextOutput("show_rvs", placeholder = TRUE), 
-    #   style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
-    # ),
+    wellPanel(
+      h3("Reactive Values"),
+      verbatimTextOutput("show_rvs", placeholder = TRUE),
+      style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
+    ),
     
     
     #### Main Panel ####
@@ -303,14 +303,14 @@ ui <- function(request) {
                                                         value = 0.5, min = 0.1, max = 20, step = 0.1)),
                                     column(width = 4,
                                            # Order of Bars
-                                           selectInput("aesOrder", label = "Order", selected = "Incr (A->Z)",
+                                           selectInput("aesOrder", label = "Order", selected = "Decr (9->1)",
                                                        choices = c("Incr (A->Z)", "Decr (Z->A)",
                                                                    "Incr (1->9)", "Decr (9->1)")))
-                                  ),
+                                  ), br(),
                                   # Radio buttons to specify if graph colors will be uniform or individual
-                                  radioButtons("aesOptions", label = NA, inline = TRUE, 
-                                               selected = "Uniform Graph aesthetics", 
-                                               choices = c("Uniform Graph aesthetics","Individual Graph aesthetics")),
+                                  radioButtons("aesOptions", label = "", inline = TRUE, 
+                                               selected = "Uniform Bar Colors", 
+                                               choices = c("Uniform Bar Colors","Individual Bar Colors")),
                                   # UI rendered depending on whether Uniform or Individual aesthetics is chosen
                                   uiOutput("aesUIs")
                          ),
@@ -802,7 +802,7 @@ server <- function(input, output, session) {
         `colnames<-`(default_ctg_name)
       default_column[,1] <- 1 # Responses are by default in the default category
       data <- bind_cols(data, default_column)
-      
+
       ## Function that returns true if keyword and match_value match according to sort_option
       check_match <- function(keyword = NA, match_value = NA, standardize = TRUE, sort_option = "Contains") {
         ## Variable to be returned
@@ -859,7 +859,7 @@ server <- function(input, output, session) {
         ctg.id <- all_categories$ctg_id[c]
         ctg.num_rules <- all_categories$ctg_num_rules[c]
         ctg.name <- paste0(all_categories$ctg_name[c])
-        
+
         # Increment Progress Bar
         incProgress(progress_inc_amt, message = paste0("Matching Category: ", ctg.name))
         
@@ -875,93 +875,102 @@ server <- function(input, output, session) {
           ctg.all_rules <- all_rules %>% 
             filter(rule_ctg_id == ctg.id) %>% 
             mutate(Num_Matches = 0) # For tracking number of matches as loop through new_column
-
-          
-          #### SKIP RESPONSE IF ALREADY CATEGORIZED (DEFAULT == 0)! ####
-          
           
           # Loop through the new column
           # Will increase the value if any match is found in the adjacent response text
           new_column[,1] <- sapply(1:nrow(new_column), function(new_col_row_idx) {
             
-            # Initial New Column Variables
-            current_response_text <- data[new_col_row_idx,1]
-            
-            # Loop through each Category Rule
-            # Will update Num_Matches with number of matches found in the response text
-            ctg.all_rules$Num_Matches <- sapply (1:nrow(ctg.all_rules), function(rule_idx) {
+            # Will skip categorizing response only if: 
+            # - Multiple Categories per Response is False AND
+            # - Adjacent response has already been categorized
+            #   (Is categorized if there's a one in another column other than the default)
+            if (!multiple_categories_per_response && sum(data[new_col_row_idx,2:ncol(data)]) > 1) {
               
-              # Initial Rule variables
-              # Each of these will be distinguished with a "." for readability
-              rule.sort_option <- ctg.all_rules$rule_sort_options[rule_idx]
-              rule.standardize <- ctg.all_rules$rule_standardize[rule_idx]
-              rule.keywords <- ctg.all_rules$rule_keywords[rule_idx] %>% 
-                stri_extract_all_words() %>% # Split the keywords into list of words
-                as.data.frame() %>%          # Convert to data frame
-                `colnames<-`("Keyword") %>%  # Change the column name
-                mutate(Num_Matches = 0)      # For tracking number of matches for each Rule's keywords
+              # Return a zero
+              return(0)
               
-              # Loop through each Rule Keyword
-              # Will update the Number of matches for each keyword
-              rule.keywords$Num_Matches <- sapply (1:nrow(rule.keywords), function(keyword_idx) {
+            } else {
+              
+              # Initial New Column Variables
+              current_response_text <- data[new_col_row_idx,1]
+              
+              # Loop through each Category Rule
+              # Will update Num_Matches with number of matches found in the response text
+              ctg.all_rules$Num_Matches <- sapply (1:nrow(ctg.all_rules), function(rule_idx) {
                 
-                # Initial Variables
-                current_keyword <- rule.keywords$Keyword[keyword_idx]
+                # Initial Rule variables
+                # Each of these will be distinguished with a "." for readability
+                rule.sort_option <- ctg.all_rules$rule_sort_options[rule_idx]
+                rule.standardize <- ctg.all_rules$rule_standardize[rule_idx]
+                rule.keywords <- ctg.all_rules$rule_keywords[rule_idx] %>% 
+                  stri_extract_all_words() %>% # Split the keywords into list of words
+                  as.data.frame() %>%          # Convert to data frame
+                  `colnames<-`("Keyword") %>%  # Change the column name
+                  mutate(Num_Matches = 0)      # For tracking number of matches for each Rule's keywords
                 
-                # Proceed if the keyword is not blank
-                if (!is.na(current_keyword)) {
+                # Loop through each Rule Keyword
+                # Will update the Number of matches for each keyword
+                rule.keywords$Num_Matches <- sapply (1:nrow(rule.keywords), function(keyword_idx) {
                   
-                  # Sort Option  (check_match())
-                  #   - CONTAINS:     Match_value contains keyword
-                  #   - EXACTLY:      Match_value equals keyword
-                  #   - BEGINS WITH:  Match_value begins with keyword
-                  #   - ENDS WITH:    Match_value ends with keyword
+                  # Initial Variables
+                  current_keyword <- rule.keywords$Keyword[keyword_idx]
                   
-                  # Proceed based on Multiple CTG's per Response
-                  #   - TRUE:  Count ALL times the keyword appears in the response text
-                  #   - FALSE: Count the FIRST time the keyword matches the response text
-                  if (multiple_categories_per_response) {
+                  # Proceed if the keyword is not blank
+                  if (!is.na(current_keyword)) {
                     
-                    # Split the response text into individual words
-                    current_response_words <- current_response_text %>%
-                      stri_extract_all_words() %>%   # Split the response into list of words
-                      as.data.frame() %>%            # Convert to data frame
-                      `colnames<-`("Response_Word")  # Change column name
+                    # Sort Option  (check_match())
+                    #   - CONTAINS:     Match_value contains keyword
+                    #   - EXACTLY:      Match_value equals keyword
+                    #   - BEGINS WITH:  Match_value begins with keyword
+                    #   - ENDS WITH:    Match_value ends with keyword
                     
-                    # Count the number of times the keyword matches across all response words,
-                    # following the sort option
-                    num_matches <- sum(apply(current_response_words, 1, function(word) {
-                      check_match(keyword = current_keyword, 
-                                  match_value = word, 
-                                  standardize = rule.standardize, 
-                                  sort_option = rule.sort_option)
-                    }))
+                    # Proceed based on Multiple CTG's per Response
+                    #   - TRUE:  Count ALL times the keyword appears in the response text
+                    #   - FALSE: Count the FIRST time the keyword matches the response text
+                    if (multiple_categories_per_response) {
+                      
+                      # Split the response text into individual words
+                      current_response_words <- current_response_text %>%
+                        stri_extract_all_words() %>%   # Split the response into list of words
+                        as.data.frame() %>%            # Convert to data frame
+                        `colnames<-`("Response_Word")  # Change column name
+                      
+                      # Count the number of times the keyword matches across all response words,
+                      # following the sort option
+                      num_matches <- sum(apply(current_response_words, 1, function(word) {
+                        check_match(keyword = current_keyword, 
+                                    match_value = word, 
+                                    standardize = rule.standardize, 
+                                    sort_option = rule.sort_option)
+                      }))
+                      
+                      return(num_matches)
+                      
+                    } else {
+                      
+                      # Check if the keyword matches the full response text, following the sort option
+                      match_found <- check_match(keyword = current_keyword, 
+                                                 match_value = current_response_text, 
+                                                 standardize = rule.standardize, 
+                                                 sort_option = rule.sort_option)
+                      
+                      # Return 1 if a match was found, 0 if not
+                      return(as.integer(match_found))
+                    }
                     
-                    return(num_matches)
-                    
-                  } else {
-                    
-                    # Check if the keyword matches the full response text, following the sort option
-                    match_found <- check_match(keyword = current_keyword, 
-                                               match_value = current_response_text, 
-                                               standardize = rule.standardize, 
-                                               sort_option = rule.sort_option)
-                    
-                    return(as.integer(match_found))
-                  }
-                } else { return(0) } # Return no matches found if keyword is NA
+                  } else { return(0) } # Return no matches found if keyword is NA
+                })
+                
+                # Return the number of Rule matches (total matches found from each keyword)
+                return( sum(rule.keywords$Num_Matches) )
               })
               
-              # Return the number of Rule matches (total matches found from each keyword)
-              return( sum(rule.keywords$Num_Matches) )
-            })
-            
-            
-            #### RETURN SUM ONLY IF MULTIPLE RESPONSES IS CHECKED, 1 IF NOT! ####
-            
-            
-            # Return number of matches only if all Rules returned a match
-            return( sum(ctg.all_rules$Num_Matches) )
+              # Change current new_column row value to sum of all matches if multiple responses is checked.
+              # Otherwise, change to 1 if any match was found and 0 if not.
+              return( if_else(multiple_categories_per_response, 
+                              sum(ctg.all_rules$Num_Matches), 
+                              as.integer(sum(ctg.all_rules$Num_Matches) > 0)) )
+            }
           })
           
           # Add the new column to the responses data
@@ -990,6 +999,7 @@ server <- function(input, output, session) {
   #### plotGG() ####
   ## Will plot the ggplot to show how many responses are in which category
   plotGG <- reactive({
+    
     ## Get the responses data sorted into categories
     data <- sortData_GG()  
     
@@ -1003,29 +1013,49 @@ server <- function(input, output, session) {
     aesthetics <- NA
     barWidth <- input$aesBarWidth
     # Position variable 
-    ifelse(input$aesPosition == "Dodge", position <- "position_dodge()", 
-           ifelse(input$aesPosition == "Stack", position <- "position_stack()", 
-                  ifelse(input$aesPosition == "Fill", position <- "position_fill()", 
-                         position <- "position_dodge2()")))
+    position <- switch (
+      EXPR = input$aesPosition,
+      "Dodge" = "position_dodge()",
+      "Stack" = "position_stack()",
+      "Fill"  = "position_fill()",
+      "position_dodge2()"
+    )
     # Order variable
-    ifelse(input$aesOrder == "Incr (1->9)", order <- "reorder(Category, n)",
-           ifelse(input$aesOrder == "Decr (1->9)", order <- "reorder(Category, desc(n))",
-                  ifelse(input$aesOrder == "Decr (Z->A)", order <- "reorder(Category, desc(Category))",
-                         order <- "Category"))) # Increasing (A->Z)
+    order <- switch (
+      EXPR = input$aesOrder,
+      "Incr (1->9)" = "reorder(Category, n)",
+      "Decr (9->1)" = "reorder(Category, desc(n))",
+      "Decr (Z->A)" = "reorder(Category, desc(Category))",
+      "Category" # Increasing (A->Z)
+    )
     
+    ## Create plotting table 
+    ## Transform into a table with two columns:
+    ##  - Category (name of each column except the first (contains responses text))
+    ##  - n        (total number of responses/mentions for each category)
+    ##  - id       (each category's id for convenience in filling in the aes row)
+    # Remove the Responses column
+    data.categories <- data %>% 
+      select(-1)
+    # Create the table for plotting
+    plot_data <- data.frame(
+      Category = colnames(data.categories),
+      n = colSums(data.categories)
+    ) 
+    # Add the id for each column
+    #  - Default Column: id = "default"
+    #  - Otherwise:      id = ctg_id from rv$all_categories
+    col_ids <- lapply(1:nrow(plot_data), function(col_idx) {
+      ifelse(col_idx == 1, # The Default Column is always the first row in plot-data
+              "default",
+              rv$all_categories$ctg_id[col_idx-1])
+    })
+    plot_data$id <- col_ids
     
-    ## Tidy the data to plot 
-    plot_data <- data %>% 
-      # Make one Category column
-      gather("Category","n",2:num_columns) %>% 
-      group_by(Category) %>% 
-      summarise(n = sum(n)) %>% 
-      as.data.frame()
-    
-
     ## A function that fills all columns of any one row in aesthetics with passed arguments
     ## (Uses the default category and NA's as the default variables)
     fill_aes_row <- function(ctgInputID = "default_aes_indiv", ctg_name = input$defaultName) {
+      
       # Create variables
       fill <- "transparent"
       color <- "transparent"
@@ -1037,13 +1067,14 @@ server <- function(input, output, session) {
       input_color <- eval(parse(text = paste0("input$", ctgInputID, "_color")))
       input_lineWidth <- eval(parse(text = paste0("input$", ctgInputID, "_line_width")))
       input_lineType <- eval(parse(text = paste0("input$", ctgInputID, "_line_type")))
+      
       # Change variables based on input values (if not NULL)
-      if (!is.null(input_fill) & !is.null(input_no_fill)) {
+      if (!is.null(input_fill) && !is.null(input_no_fill)) {
         if (input_no_fill == FALSE) {
           fill <- input_fill
         }
       }
-      if (!is.null(input_color) & !is.null(input_no_color)) {
+      if (!is.null(input_color) && !is.null(input_no_color)) {
         if (input_no_color == FALSE) {
           color <- input_color
           if (!is.null(input_lineWidth)) {
@@ -1054,9 +1085,11 @@ server <- function(input, output, session) {
           }
         }
       }
+      
       # Create a blank row to be returned
       new_aes <- data.frame(matrix(nrow = 1, ncol = 5)) %>% 
         `colnames<-`(c("category","fill","color","lineWidth","lineType"))
+      
       # Replace specified row in new_aes with previously defined variables, if the category exists
       new_aes[1,1] <- ctg_name
       new_aes[1,2] <- fill
@@ -1066,45 +1099,36 @@ server <- function(input, output, session) {
 
       return(new_aes)
     }
-      
     
     ## Fill the aestetic values based on plot_data
     # Aestetic values (by Category) for the graph
     aesthetics <- as.data.frame(matrix(ncol = 5, # Category, Fill, Color, Line Width, Line Type, Bar Width
                                       nrow = num_columns - 1)) %>% # Number of Categories (including Default)
       `colnames<-`(c("category","fill","color","lineWidth","lineType"))
+    
     # Loop through each category added and fill the aesthetics data frame
-    for (c in 0:input$ctgAdd) {
+    for (c in 1:nrow(plot_data)) {
+      
       # Category variables (Default category by default)
-      ctg_id <- "default"
-      ctg_name <- input$defaultName
-      if (c != 0) {
-        ctg_id <- paste0("ctg_",c)
-        ctg_name <- eval(parse(text = paste0("input$", ctg_id, "_name")))
-      }
-      # Loop through each row of plot_data for assigning aesthetics and category validation
-      for (r in 1:nrow(plot_data)) { 
-        ctg_name_plot_data <- plot_data$Category[r]
-        # Proceed to assign aesthetics if current ctg name matches the current Category in plot_data
-        # (if it's listed in plot_data, the category exists)
-        if (str_detect(ctg_name_plot_data, ctg_name)) {
-          # Create aesthetic id for retrieving aesthetics
-          aes_id <- "aes_uniform" # Uniform by default
-          if (input$aesOptions == "Individual Graph aesthetics") {
-            aes_id <- paste0(ctg_id, "_aes_indiv")
-          } 
-          # Fill aesthetics row
-          aesthetics[r,] <- fill_aes_row(ctgInputID = aes_id, ctg_name = ctg_name)
-        }
-      }
+      ctg_id <- plot_data$id[c]
+      ctg_name <- plot_data$Category[c]
+      
+      # Create aesthetic id for retrieving aesthetics
+      aes_id <- "aes_uniform" # Uniform by default
+      if (input$aesOptions == "Individual Graph aesthetics") {
+        aes_id <- paste0(ctg_id, "_aes_indiv")
+      } 
+      
+      # Fill aesthetics row with function
+      aesthetics[c,] <- fill_aes_row(ctgInputID = aes_id, ctg_name = ctg_name)
     }
-
+    
+    View(aesthetics)
 
     ## Plot the data according to non-conditional user inputs
     plot <- ggplot(plot_data) +
       labs(title = input$mainTitle, x = input$xTitle, y = input$yTitle) + 
       eval(parse(text = paste0("theme_", input$selectTheme, "()"))) # The theme of the plot
-    
     
     ## Add Conditional Aesthetics
     # Add the base plot with aesthetics, reordering as specified
@@ -1135,7 +1159,6 @@ server <- function(input, output, session) {
       plot <- plot + scale_size_manual(values = c(scale_lineWidth_values)) 
       plot <- plot + scale_linetype_manual(values = c(scale_lineType_values))
     }
-    
     
     ## Implement additional conditional customizations
     ## Subtitle
@@ -2191,36 +2214,46 @@ server <- function(input, output, session) {
   #### Render Aesthetic Customization UI's ####
   ## Renders UI's based on whether Uniform or Individual aesthetics is selected in the 'aesthetics' customization tab
   output$aesUIs <- renderUI({
+    
     ## Individual aesthetics
-    if (input$aesOptions == "Individual Graph aesthetics") {
+    if (input$aesOptions == "Individual Bar Colors") {
+      
       ## A list of UI's for the default category
       default_uis_list <- lapply(1:1, function(i) {
+        
         # Default Category id
         default_id <- paste0("default_aes_indiv")
+        
         # List of Category Default UI's for individual aes customization
         list(
           hr(),
           h4(paste0("Default Category: ", input$defaultName)),
           br(),
           flowLayout(
+            
             # Fill
             colourpicker::colourInput(paste0(default_id, "_fill"), label = "Fill", value = "gray", 
                         allowTransparent = TRUE, returnName = TRUE),
+            
             # No Fill?
             checkboxInput(paste0(default_id, "_no_fill"), label = "No Fill", value = FALSE),
+            
             # Color
             colourpicker::colourInput(paste0(default_id, "_color"), label = "Color", value = "black", 
                         allowTransparent = TRUE, returnName = TRUE),
+            
             # No Color?
             checkboxInput(paste0(default_id, "_no_color"), label = "No Color", value = TRUE),
             conditionalPanel(
               condition = paste0("!input.",default_id, "_no_color"),
               fluidRow(
                 column(width = 5,
+                       
                        # Line Width
                        numericInput(paste0(default_id, "_line_width"), label = "Line Width", 
                                     value = 0.5, min = 0, max = 10, step = 0.01)),
                 column(width = 7,
+                       
                        # Linetype
                        selectInput(paste0(default_id, "_line_type"), label = "Line Type", selected = "solid", 
                                    choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash")))
@@ -2229,40 +2262,50 @@ server <- function(input, output, session) {
           )
         )
       })
-      ## A list of new UI's for each valid category (including default)
-      uis_list <- lapply(1:input$ctgAdd, function(i) {
+      
+      ## A list of new UI's for each existing category
+      uis_list <- lapply(1:nrow(rv$all_categories), function(i) {
+        
         # Category variables
-        current_ctg_id <- paste0("ctg_", i)
-        current_ctg_num_rules_id <- paste0(current_ctg_id, "_num_rules")
-        current_ctg_name <- eval(parse(text = paste0("input$", current_ctg_id, "_name")))
-        # Proceed if the current category exists (is not NA in the reactive values) AND has at least one rule
-        if (!is.na(rv[[current_ctg_id]]) & rv[[current_ctg_num_rules_id]] > 0) {
+        current_ctg_id <- rv$all_categories$ctg_id[i]
+        current_ctg_name <- rv$all_categories$ctg_name[i]
+        
+        # Proceed if the current category has at least one rule
+        if (rv$all_categories$ctg_num_rules[i] > 0) {
+          
           # Unique id for all ui's in category
           aes_id <- paste0(current_ctg_id, "_aes_indiv")
           list(
+            
             # Category Header
             hr(),
             h4(paste0("Category ", i, ": ", current_ctg_name)),
             br(),
             flowLayout(
+              
               # Fill
               colourpicker::colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
                           allowTransparent = TRUE, returnName = TRUE),
+              
               # No Fill?
               checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
+              
               # Color
               colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
                           allowTransparent = TRUE, returnName = TRUE),
+              
               # No Color?
               checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
               conditionalPanel(
                 condition = paste0("!input.",aes_id, "_no_color"),
                 fluidRow(
                   column(width = 5,
+                         
                          # Line Width
                          numericInput(paste0(aes_id, "_line_width"), label = "Line Width", 
                                       value = 0.5, min = 0, max = 10, step = 0.01)),
                   column(width = 7,
+                         
                          # Linetype
                          selectInput(paste0(aes_id, "_line_type"), label = "Line Type", selected = "solid", 
                                      choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash")))
@@ -2272,34 +2315,43 @@ server <- function(input, output, session) {
           )
         }
       })
-      ## Unlist the UI lists
+      
+      ## Un-list the UI lists
       default_uis <- unlist(default_uis_list, recursive = FALSE)
       ctgs_uis <- unlist(uis_list, recursive = FALSE)
-      ## Proceed if other category list was not NULL
+      
+      ## Append all category UI's to default category, if not NULL
       if (!is.null(ctgs_uis)) {
-        # Combine all category UI's to default category, if not NULL
         default_uis <- append(default_uis, ctgs_uis)
       }
+      
       ## Render the UI's
       do.call(tagList, default_uis)
         
     } else {
+      
       ## Uniform aesthetics
-      if (input$aesOptions == "Uniform Graph aesthetics") {
+      if (input$aesOptions == "Uniform Bar Colors") {
+        
         # Unique id for all ui's
         aes_id <- paste0("aes_uniform")
-        # Make a list
+        
+        # Render this list of ui's
         tagList(
           hr(),
           flowLayout(
+            
             # Fill
             colourpicker::colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
                         allowTransparent = TRUE, returnName = TRUE),
+            
             # No Fill?
             checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
+            
             # Color
             colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
                         allowTransparent = TRUE, returnName = TRUE),
+            
             # No Color?
             checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
             conditionalPanel(
@@ -2346,10 +2398,10 @@ server <- function(input, output, session) {
   
   
   #### Render RV Table ####
-  # output$show_rvs <- renderPrint({
-  #   # Show all reactive values as a data table
-  #   print(reactiveValuesToList(rv))
-  # })
+  output$show_rvs <- renderPrint({
+    # Show all reactive values as a data table
+    print(reactiveValuesToList(rv))
+  })
 }
 
 
