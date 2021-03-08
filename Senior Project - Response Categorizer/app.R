@@ -600,7 +600,7 @@ ui <- function(request) {
                                              hr()
                                            ),
                                            # Edit Panel Background
-                                           checkboxInput("editPanelBackground", "Edit Panel Background",value = FALSE),
+                                           checkboxInput("editPanelBackground", "Edit Panel",value = FALSE),
                                            conditionalPanel(
                                              condition = "input.editPanelBackground",
                                              # Blank?
@@ -608,7 +608,7 @@ ui <- function(request) {
                                              conditionalPanel(
                                                condition = "!input.panelBackgroundBlank",
                                                # Fill
-                                               colourpicker::colourInput("PanelBackgroundFill", label = "Fill", 
+                                               colourpicker::colourInput("panelBackgroundFill", label = "Fill", 
                                                                          allowTransparent = TRUE, returnName = TRUE),
                                                # Color
                                                colourpicker::colourInput("panelBackgroundColor", label = "Color", value = "black", 
@@ -623,28 +623,8 @@ ui <- function(request) {
                                                                        "dotdash","longdash","twodash"))
                                              ),
                                              hr()
-                                           ),
-                                           # Edit Panel Border
-                                           checkboxInput("editPanelBorder", "Edit Panel Border", value = FALSE),
-                                           conditionalPanel(
-                                             condition = "input.editPanelBorder",
-                                             # Blank?
-                                             checkboxInput("panelBorderBlank", "Blank", value = TRUE),
-                                             conditionalPanel(
-                                               condition = "!input.panelBorderBlank",
-                                               # Color
-                                               colourpicker::colourInput("panelBorderColor", label = "Color", value = "black", 
-                                                                         allowTransparent = TRUE, returnName = TRUE),
-                                               # Line Width
-                                               numericInput("panelBorderLineWidth", label = "Line Width", 
-                                                            value = 0.5, min = 0, max = 10, step = 0.01),
-                                               # Line Type
-                                               selectInput("panelBorderLineType", label = "Line Type",
-                                                           selected = "solid", 
-                                                           choices = c("blank","solid","dashed","dotted",
-                                                                       "dotdash","longdash","twodash"))
-                                             )
-                                           ))
+                                           )
+                                    )
                                   )
                          )
                        )
@@ -712,18 +692,44 @@ server <- function(input, output, session) {
       ctg_id = character(),
       rule_id = character(),
       buttons_pushed = logical()
-      )
+      ),
+    ## The color inputs don't save to server, so need to save them here
+    # All color inputs' values created in UI above
+    plot_colors_static = data.frame(
+      grid_lines_all = "",
+      grid_lines_x_all = "",
+      grid_lines_x_major = "",
+      grid_lines_x_minor = "",
+      grid_lines_y_all = "",
+      grid_lines_y_major = "",
+      grid_lines_y_minor = "",
+      plot_background_fill = "",
+      plot_background_color = "",
+      panel_background_fill = "",
+      panel_background_color = ""
+    ),
+    # The colors generated for individual bar aesthetics
+    ctg_aesthetics = data.frame(
+      id = character(),
+      category = character(),
+      fill = character(),
+      color = character(),
+      linewidth = integer(),
+      linetype = character()
+    )
   )
-
+  
   
   
   #### onBookmark() ####
   ## Store all reactive values and other things when saving to state (bookmarking)
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmark(function(state) {
-    # Save all reactive values
-    state$values$all_reactive_values <- rv
-    
+    # Save all important reactive values
+    state$values$all_categories <- rv$all_categories
+    state$values$all_rules <- rv$all_rules
+    state$values$ctg_aesthetics <- rv$ctg_aesthetics
+    state$values$plot_colors_static <- rv$plot_colors_static
     # Show the sharable URL modal
     showBookmarkUrlModal
   })
@@ -734,10 +740,18 @@ server <- function(input, output, session) {
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onRestore(function(state) {
     
-    # Reload all reactive values
-    rv <- state$values$all_reactive_values
+    # Reload all saved reactive values
+    rv$all_categories <- state$values$all_categories
+    rv$all_rules <- state$values$all_rules
+    rv$ctg_aesthetics <- state$values$ctg_aesthetics
+    rv$plot_colors_static <- state$values$plot_colors_static
     
-    # print(rv)
+    # "Manually" create all RV categories ####
+    
+    # "Manually" create all RV rules ####
+    
+    # Plot based on RV colors and aesthetics ####
+    
   })
   
   
@@ -787,11 +801,11 @@ server <- function(input, output, session) {
       }
       
       ## Read in reactive value data frames containing current data for all categories and rules
-      all_categories <- rv$all_categories 
+      # all_categories <- rv$all_categories 
       all_rules <- rv$all_rules
       
       ## Initial Variables
-      N <- nrow(all_categories) # Number of categories
+      N <- nrow(rv$all_categories) # Number of categories
       num_responses <- nrow(data) # Number of responses
       num_rules <- nrow(all_rules) # Number of rules
       default_ctg_name <- paste0(input$defaultName)
@@ -800,13 +814,15 @@ server <- function(input, output, session) {
       ## Add a new Default Category column to the variables data
       default_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>% 
         `colnames<-`(default_ctg_name)
-      default_column[,1] <- 1 # Responses are by default in the default category
+      default_column[,1] <- as.integer(1) # Responses are by default in the default category
       data <- bind_cols(data, default_column)
 
-      ## Function that returns true if keyword and match_value match according to sort_option
+      ## Function that returns 1 if keyword and match_value match according to sort_option
       check_match <- function(keyword = NA, match_value = NA, standardize = TRUE, sort_option = "Contains") {
+        
         ## Variable to be returned
-        found_match <- FALSE
+        found_match <- as.integer(0)
+        
         ## Make response and keyword lower-case if standardize is true
         if (!is.na(match_value) & keyword != "" & !is.na(keyword)) { 
           if (standardize) {
@@ -828,13 +844,13 @@ server <- function(input, output, session) {
           if (sort_option == "Exactly") {
             if (match_value == keyword) {
               # They match!
-              found_match <- TRUE
+              found_match <- as.integer(1)
             }
           } else {
             ## Check for any other match
             if (str_detect(match_value, pattern)) {
               # They match!
-              found_match <- TRUE
+              found_match <- as.integer(1)
             } 
           }
         }
@@ -856,9 +872,9 @@ server <- function(input, output, session) {
         
         # Initial Current Category variables (for convenience and readability)
         # Each of these will be distinguished with a "."
-        ctg.id <- all_categories$ctg_id[c]
-        ctg.num_rules <- all_categories$ctg_num_rules[c]
-        ctg.name <- paste0(all_categories$ctg_name[c])
+        ctg.id <- rv$all_categories$ctg_id[c]
+        ctg.num_rules <- rv$all_categories$ctg_num_rules[c]
+        ctg.name <- paste0(rv$all_categories$ctg_name[c])
 
         # Increment Progress Bar
         incProgress(progress_inc_amt, message = paste0("Matching Category: ", ctg.name))
@@ -869,15 +885,15 @@ server <- function(input, output, session) {
           # Create a new Category column to track whether each response is assigned to this category
           new_column = data.frame(matrix(nrow = num_responses, ncol = 1)) %>%
             `colnames<-`(ctg.name) # Name column after Category's current name
-          new_column[,1] <- 0 # Values are set to zero (rather than FALSE) by default
+          new_column[,1] <- as.integer(0) # Values are set to zero (rather than FALSE) by default
           
           # Retrieve all rule data for this category
           ctg.all_rules <- all_rules %>% 
             filter(rule_ctg_id == ctg.id) %>% 
-            mutate(Num_Matches = 0) # For tracking number of matches as loop through new_column
+            mutate(Num_Matches = as.integer(0)) # For tracking number of matches as loop through new_column
           
-          # Loop through the new column
-          # Will increase the value if any match is found in the adjacent response text
+          # Update the new column
+          # Will increase the value based on matches found in the adjacent response text
           new_column[,1] <- sapply(1:nrow(new_column), function(new_col_row_idx) {
             
             # Will skip categorizing response only if: 
@@ -887,7 +903,7 @@ server <- function(input, output, session) {
             if (!multiple_categories_per_response && sum(data[new_col_row_idx,2:ncol(data)]) > 1) {
               
               # Return a zero
-              return(0)
+              return(as.integer(0))
               
             } else {
               
@@ -896,7 +912,7 @@ server <- function(input, output, session) {
               
               # Loop through each Category Rule
               # Will update Num_Matches with number of matches found in the response text
-              ctg.all_rules$Num_Matches <- sapply (1:nrow(ctg.all_rules), function(rule_idx) {
+              ctg.all_rules$Num_Matches <- sapply(1:nrow(ctg.all_rules), function(rule_idx) {
                 
                 # Initial Rule variables
                 # Each of these will be distinguished with a "." for readability
@@ -906,17 +922,17 @@ server <- function(input, output, session) {
                   stri_extract_all_words() %>% # Split the keywords into list of words
                   as.data.frame() %>%          # Convert to data frame
                   `colnames<-`("Keyword") %>%  # Change the column name
-                  mutate(Num_Matches = 0)      # For tracking number of matches for each Rule's keywords
+                  mutate(Num_Matches = as.integer(0)) # For tracking number of matches for each Rule's keywords
                 
                 # Loop through each Rule Keyword
                 # Will update the Number of matches for each keyword
-                rule.keywords$Num_Matches <- sapply (1:nrow(rule.keywords), function(keyword_idx) {
+                rule.keywords$Num_Matches <- sapply(1:nrow(rule.keywords), function(keyword_idx) {
                   
                   # Initial Variables
                   current_keyword <- rule.keywords$Keyword[keyword_idx]
                   
                   # Proceed if the keyword is not blank
-                  if (!is.na(current_keyword)) {
+                  if (!is.na(current_keyword) & current_keyword != "") {
                     
                     # Sort Option  (check_match())
                     #   - CONTAINS:     Match_value contains keyword
@@ -937,14 +953,14 @@ server <- function(input, output, session) {
                       
                       # Count the number of times the keyword matches across all response words,
                       # following the sort option
-                      num_matches <- sum(apply(current_response_words, 1, function(word) {
+                      num_matches <- sapply(1:nrow(current_response_words), function(word) {
                         check_match(keyword = current_keyword, 
                                     match_value = word, 
                                     standardize = rule.standardize, 
                                     sort_option = rule.sort_option)
-                      }))
+                      })
                       
-                      return(num_matches)
+                      return(sum(num_matches))
                       
                     } else {
                       
@@ -955,21 +971,23 @@ server <- function(input, output, session) {
                                                  sort_option = rule.sort_option)
                       
                       # Return 1 if a match was found, 0 if not
-                      return(as.integer(match_found))
+                      return(match_found)
                     }
                     
-                  } else { return(0) } # Return no matches found if keyword is NA
+                  } else { return(as.integer(0)) } # Return no matches found if keyword is NA
                 })
                 
                 # Return the number of Rule matches (total matches found from each keyword)
-                return( sum(rule.keywords$Num_Matches) )
+                return( as.integer(sum(rule.keywords$Num_Matches)) )
               })
               
               # Change current new_column row value to sum of all matches if multiple responses is checked.
-              # Otherwise, change to 1 if any match was found and 0 if not.
-              return( if_else(multiple_categories_per_response, 
-                              sum(ctg.all_rules$Num_Matches), 
-                              as.integer(sum(ctg.all_rules$Num_Matches) > 0)) )
+              # Otherwise, change to 1 if more than one match was found and 0 if not.
+              return( as.integer(
+                ifelse(multiple_categories_per_response,
+                       sum(ctg.all_rules$Num_Matches),
+                       ifelse(sum(ctg.all_rules$Num_Matches) > 0, 1, 0)) )
+              )
             }
           })
           
@@ -985,7 +1003,7 @@ server <- function(input, output, session) {
       ## Set Default Column values to 0 if the response is assigned to any other Category
       ## (Need to exclude the response text in apply() so sum() will work)
       data[,2] <- apply(data %>% select(-c("Responses")), 1, function(data_row) {
-        if_else(sum(data_row) > 1, 0, 1) # Sum every column, except the first
+        as.integer(if_else(sum(data_row) > 1, 0, 1)) # Sum every column, except the first
       })
       
       ## Return the responses data with all added Category columns
@@ -1004,7 +1022,7 @@ server <- function(input, output, session) {
     data <- sortData_GG()  
     
     ## Skip if data is null or no categories have been made
-    if (is.null(data) | !input$ctgAdd) {
+    if (is.null(data) || nrow(rv$all_categories) == 0) {
       return(NULL)
     }
     
@@ -1028,7 +1046,7 @@ server <- function(input, output, session) {
       "Decr (Z->A)" = "reorder(Category, desc(Category))",
       "Category" # Increasing (A->Z)
     )
-    
+
     ## Create plotting table 
     ## Transform into a table with two columns:
     ##  - Category (name of each column except the first (contains responses text))
@@ -1047,84 +1065,118 @@ server <- function(input, output, session) {
     #  - Otherwise:      id = ctg_id from rv$all_categories
     col_ids <- lapply(1:nrow(plot_data), function(col_idx) {
       ifelse(col_idx == 1, # The Default Column is always the first row in plot-data
-              "default",
-              rv$all_categories$ctg_id[col_idx-1])
+             "default",
+             rv$all_categories$ctg_id[col_idx-1])
     })
     plot_data$id <- col_ids
     
-    ## A function that fills all columns of any one row in aesthetics with passed arguments
+    ## Returns a new ctg_aesthetics row
     ## (Uses the default category and NA's as the default variables)
-    fill_aes_row <- function(ctgInputID = "default_aes_indiv", ctg_name = input$defaultName) {
+    fill_aes_row <- function(ctgInputID = NA, ctg_name = NA, id_num = NA) {
       
-      # Create variables
-      fill <- "transparent"
-      color <- "transparent"
-      lineWidth <- 0
-      lineType <- "blank"
-      input_no_fill <- eval(parse(text = paste0("input$", ctgInputID, "_no_fill")))
-      input_fill <- eval(parse(text = paste0("input$", ctgInputID, "_fill")))
-      input_no_color <- eval(parse(text = paste0("input$", ctgInputID, "_no_color")))
-      input_color <- eval(parse(text = paste0("input$", ctgInputID, "_color")))
-      input_lineWidth <- eval(parse(text = paste0("input$", ctgInputID, "_line_width")))
-      input_lineType <- eval(parse(text = paste0("input$", ctgInputID, "_line_type")))
-      
-      # Change variables based on input values (if not NULL)
-      if (!is.null(input_fill) && !is.null(input_no_fill)) {
-        if (input_no_fill == FALSE) {
-          fill <- input_fill
-        }
-      }
-      if (!is.null(input_color) && !is.null(input_no_color)) {
-        if (input_no_color == FALSE) {
-          color <- input_color
-          if (!is.null(input_lineWidth)) {
-            lineWidth <- input_lineWidth
-          }
-          if (!is.null(input_lineType)) {
-            lineType <- input_lineType
+      # Stop and return NA if the arguments passed are NA
+      if (is.na(ctgInputID) | is.na(ctg_name) | is.na(id_num)) {
+        return(NA)
+      } else {
+        
+        # Create variables
+        fill <- "transparent"
+        color <- "transparent"
+        lineWidth <- 0
+        lineType <- "blank"
+        input_no_fill <- eval(parse(text = paste0("input$", ctgInputID, "_no_fill")))
+        input_fill <- eval(parse(text = paste0("input$", ctgInputID, "_fill")))
+        input_no_color <- eval(parse(text = paste0("input$", ctgInputID, "_no_color")))
+        input_color <- eval(parse(text = paste0("input$", ctgInputID, "_color")))
+        input_lineWidth <- eval(parse(text = paste0("input$", ctgInputID, "_line_width")))
+        input_lineType <- eval(parse(text = paste0("input$", ctgInputID, "_line_type")))
+        
+        # Change variables based on input values (if not NULL)
+        if (!is.null(input_fill) && !is.null(input_no_fill)) {
+          if (input_no_fill == FALSE) {
+            fill <- input_fill
           }
         }
+        if (!is.null(input_color) && !is.null(input_no_color)) {
+          if (input_no_color == FALSE) {
+            color <- input_color
+            if (!is.null(input_lineWidth)) {
+              lineWidth <- input_lineWidth
+            }
+            if (!is.null(input_lineType)) {
+              lineType <- input_lineType
+            }
+          }
+        }
+        
+        # Create a new row to be returned
+        # new_aes <- data.frame(matrix(nrow = 1, ncol = 5)) %>% 
+        #   `colnames<-`(c("category","fill","color","lineWidth","lineType"))
+        new_aes <- data.frame(
+          id = paste0(ctgInputID, "_", id_num),
+          category = ctg_name,
+          fill = fill,
+          color = color,
+          linewidth = lineWidth,
+          linetype = lineType 
+        )
+        
+        return(new_aes)
       }
-      
-      # Create a blank row to be returned
-      new_aes <- data.frame(matrix(nrow = 1, ncol = 5)) %>% 
-        `colnames<-`(c("category","fill","color","lineWidth","lineType"))
-      
-      # Replace specified row in new_aes with previously defined variables, if the category exists
-      new_aes[1,1] <- ctg_name
-      new_aes[1,2] <- fill
-      new_aes[1,3] <- color
-      new_aes[1,4] <- lineWidth
-      new_aes[1,5] <- lineType
-
-      return(new_aes)
     }
     
-    ## Fill the aestetic values based on plot_data
-    # Aestetic values (by Category) for the graph
-    aesthetics <- as.data.frame(matrix(ncol = 5, # Category, Fill, Color, Line Width, Line Type, Bar Width
-                                      nrow = num_columns - 1)) %>% # Number of Categories (including Default)
-      `colnames<-`(c("category","fill","color","lineWidth","lineType"))
+    ## Create a new ctg aesthetics data frame to replace the RV one
+    new_ctg_aesthetics <- data.frame(
+      id = character(),
+      category = character(),
+      fill = character(),
+      color = character(),
+      linewidth = integer(),
+      linetype = character()
+    )
     
-    # Loop through each category added and fill the aesthetics data frame
-    for (c in 1:nrow(plot_data)) {
+    ## Fill the new_ctg_aesthetics data frame with the aes values for each existing category
+    for (i in 0:nrow(rv$all_categories)) { # Need +1 to include Default Category
       
-      # Category variables (Default category by default)
-      ctg_id <- plot_data$id[c]
-      ctg_name <- plot_data$Category[c]
-      
-      # Create aesthetic id for retrieving aesthetics
-      aes_id <- "aes_uniform" # Uniform by default
-      if (input$aesOptions == "Individual Graph aesthetics") {
-        aes_id <- paste0(ctg_id, "_aes_indiv")
-      } 
-      
-      # Fill aesthetics row with function
-      aesthetics[c,] <- fill_aes_row(ctgInputID = aes_id, ctg_name = ctg_name)
+      # Continue if this category has at least one rule OR is the default category
+      if (rv$all_categories$ctg_num_rules > 0 | i == 0) {
+        
+        # All bars have Uniform aesthetics (by default)
+        id <- "aes_uniform"
+        name <- ifelse(i == 0, # Is the Default category
+                       input$defaultName, 
+                       rv$all_categories$ctg_name[i])
+        
+        # Change id and name if "Individual Bar Colors" is selected
+        if (input$aesOptions == "Individual Bar Colors") {
+          # All bars have individual aesthetics
+          id <- ifelse(i == 0, # Is the Default category
+                       "default_aes_indiv", 
+                       paste0(rv$all_categories$ctg_id[i], "_aes_indiv"))
+          name <- ifelse(i == 0, # Is the Default category
+                         input$defaultName, 
+                         rv$all_categories$ctg_name[i])
+        } 
+        
+        # Use previous function to retrieve all aes values using id and name
+        new_aes_row <- fill_aes_row(ctgInputID = id, ctg_name = name, id_num = i)
+        
+        # Update the new_ctg_aethetics table if the new row is not empty
+        if (!is.na(new_aes_row[1])) {
+          # Replace the existing row by matching id
+          if (paste0(id, "_", i) %in% new_ctg_aesthetics$id) {
+            new_ctg_aesthetics[new_ctg_aesthetics$aes_id == paste0(id, "_", i)] <- new_aes_row
+          } else {
+            # Add the new row
+            new_ctg_aesthetics <- bind_rows(new_ctg_aesthetics, new_aes_row)
+          }
+        }
+      }
     }
+      
+    ## Replace the RV ctg aesthetics with the new ctg aesthetics
+    rv$ctg_aesthetics <- new_ctg_aesthetics
     
-    View(aesthetics)
-
     ## Plot the data according to non-conditional user inputs
     plot <- ggplot(plot_data) +
       labs(title = input$mainTitle, x = input$xTitle, y = input$yTitle) + 
@@ -1140,21 +1192,21 @@ server <- function(input, output, session) {
                             width = barWidth,
                             stat = "identity",
                             position = eval(parse(text = position)), show.legend = FALSE)
-    # Aestetic variables
+    # Category Aesthetic variables
     scale_fill_values <- NA
     scale_color_values <- NA
     scale_lineWidth_values <- NA
     scale_lineType_values <- "blank"
-    # Add graph aesthetics
-    if (!is.na(aesthetics[1,1])) {
+    # Add graph aesthetics (from RV data frame)
+    if (nrow(rv$ctg_aesthetics) > 0) {
       # Turn the vectors of chars in aesthetics into a single string separated by a comma
-      scale_fill_values <- aesthetics$fill
-      scale_color_values <- aesthetics$color
-      scale_lineWidth_values <- aesthetics$lineWidth
-      scale_lineType_values <- aesthetics$lineType
+      scale_fill_values <- rv$ctg_aesthetics$fill
+      scale_color_values <- rv$ctg_aesthetics$color
+      scale_lineWidth_values <- rv$ctg_aesthetics$linewidth
+      scale_lineType_values <- rv$ctg_aesthetics$linetype
       
       # Create scale_ functions using variables to add to the plot
-      plot <- plot + scale_fill_manual(values = c(scale_fill_values)) 
+      plot <- plot + scale_fill_manual(values = c(scale_fill_values))
       plot <- plot + scale_color_manual(values = c(scale_color_values)) 
       plot <- plot + scale_size_manual(values = c(scale_lineWidth_values)) 
       plot <- plot + scale_linetype_manual(values = c(scale_lineType_values))
@@ -1187,7 +1239,7 @@ server <- function(input, output, session) {
       if (input$gridLinesToEdit == "All") {
         # Change new all grid lines theme element if blank is not selected
         if (!input$glAllBlank) {
-          new_all_grid_lines <- element_line(color = input$glAllColor, size = input$glAllLineWidth, 
+          new_all_grid_lines <- element_line(color = rv$plot_colors_static$grid_lines_all, size = input$glAllLineWidth, 
                                              linetype = input$glAllLineType, lineend = input$glAllLineEnd)
         }
         # Add new all grid lines theme element to plot
@@ -1200,7 +1252,7 @@ server <- function(input, output, session) {
           if (input$xGridLinesToEdit == "All") {
             # Change all x-axis theme element if blank is not selected
             if (!input$glXAllBlank) {
-              new_all_x <- element_line(color = input$glXAllColor, size = input$glXAllLineWidth, 
+              new_all_x <- element_line(color = rv$plot_colors_static$grid_lines_x_all, size = input$glXAllLineWidth, 
                                         linetype = input$glXAllLineType, lineend = input$glXAllLineEnd)}
             # Add new all x-axis theme element
             plot <- plot + theme(panel.grid.major.x = new_all_x, 
@@ -1212,7 +1264,7 @@ server <- function(input, output, session) {
               if (input$glEditMajorX) {
                 # Edit if blank is not selected
                 if (!input$glMajorXBlank) {
-                  new_major_x <- element_line(color = input$glMajorXColor, size = input$glMajorXLineWidth, 
+                  new_major_x <- element_line(color = rv$plot_colors_static$grid_lines_x_major, size = input$glMajorXLineWidth, 
                                               linetype = input$glMajorXLineType, lineend = input$glMajorXLineEnd)
                 }
                 # Add new grid line theme element to the plot
@@ -1222,7 +1274,7 @@ server <- function(input, output, session) {
               if (input$glEditMinorX) {
                 # Edit if blank is not selected
                 if (!input$glMinorXBlank) {
-                  new_minor_x <- element_line(color = input$glMinorXColor, size = input$glMinorXLineWidth, 
+                  new_minor_x <- element_line(color = rv$plot_colors_static$grid_lines_x_minor, size = input$glMinorXLineWidth, 
                                               linetype = input$glMinorXLineType, lineend = input$glMinorXLineEnd)
                 }
                 # Add new grid line theme element to the plot
@@ -1234,7 +1286,7 @@ server <- function(input, output, session) {
           if (input$yGridLinesToEdit == "All") {
             # Change all y-axis theme element if blank is not selected
             if (!input$glYAllBlank) {
-              new_all_y <- element_line(color = input$glYAllColor, size = input$glYAllLineWidth, 
+              new_all_y <- element_line(color = rv$plot_colors_static$grid_lines_y_all, size = input$glYAllLineWidth, 
                                         linetype = input$glYAllLineType, lineend = input$glYAllLineEnd)}
             # Add new all y-axis theme element
             plot <- plot + theme(panel.grid.major.y = new_all_y, 
@@ -1246,7 +1298,7 @@ server <- function(input, output, session) {
               if (input$glEditMajorY) {
                 # Edit if blank is not selected
                 if (!input$glMajorYBlank) {
-                  new_major_y <- element_line(color = input$glMajorYColor, size = input$glMajorYLineWidth, 
+                  new_major_y <- element_line(color = rv$plot_colors_static$grid_lines_y_major, size = input$glMajorYLineWidth, 
                                               linetype = input$glMajorYLineType, lineend = input$glMajorYLineEnd)
                 }
                 # Add new grid line theme element to the plot
@@ -1256,7 +1308,7 @@ server <- function(input, output, session) {
               if (input$glEditMinorY) {
                 # Edit if blank is not selected
                 if (!input$glMinorYBlank) {
-                  new_minor_y <- element_line(color = input$glMinorYColor, size = input$glMinorYLineWidth, 
+                  new_minor_y <- element_line(color = rv$plot_colors_static$grid_lines_y_minor, size = input$glMinorYLineWidth, 
                                               linetype = input$glMinorYLineType, lineend = input$glMinorYLineEnd)
                 }
                 # Add new grid line theme element to the plot
@@ -1272,7 +1324,8 @@ server <- function(input, output, session) {
       # Either element_blank or element_rect
       new_plot_background <- element_blank()
       if (!input$plotBackgroundBlank) {
-        new_plot_background <- element_rect(fill = input$plotBackgroundFill, color = input$plotBackgroundColor,
+        new_plot_background <- element_rect(fill = rv$plot_colors_static$plot_background_fill, 
+                                            color = rv$plot_colors_static$plot_background_color,
                                             size = input$plotBackgroundLineWidth, 
                                             linetype = input$plotBackgroundLineType)}
       # Add new theme element to the plot
@@ -1283,26 +1336,16 @@ server <- function(input, output, session) {
       # Either element_blank or element_rect
       new_panel_background <- element_blank()
       if (!input$panelBackgroundBlank) {
-        new_panel_background <- element_rect(fill = input$panelBackgroundFill, color = input$panelBackgroundColor,
-                                             size = input$panelBackgroundLineWidth, 
-                                             linetype = input$panelBackgroundLineType)}
+        new_panel <- element_rect(fill = rv$plot_colors_static$panel_background_fill, 
+                                  color = rv$plot_colors_static$panel_background_color,
+                                  size = input$panelBackgroundLineWidth, 
+                                  linetype = input$panelBackgroundLineType)}
       # Add new theme element to the plot
-      plot <- plot + theme(panel.background = new_panel_background)
-    }
-    ## Panel Border
-    if (input$editPanelBorder) {
-      # Either element_blank or element_rect
-      new_panel_border <- element_blank()
-      if (!input$panelBorderBlank) {
-        new_panel_border <- element_rect(fill = NA, color = input$panelBorderColor,
-                                         size = input$panelBorderLineWidth, 
-                                         linetype = input$panelBorderLineType)}
-      # Add new theme element to the plot
-      plot <- plot + theme(panel.border = new_panel_border)
+      plot <- plot + theme(panel.background = new_panel)
     }
 
+    ## Return the finished plot to be plotted
     return(plot)
-
   })
   
   
@@ -1314,13 +1357,14 @@ server <- function(input, output, session) {
     
     
     ## Skip if data is null or no categories have been made
-    if (is.null(data) | !input$ctgAdd) {
+    if (is.null(data) | nrow(rv$all_categories) == 0) {
       return(NULL)
     }  
     
     ## Re-structure the data to be plotted as a table
-    table_data <- data %>% 
-      as.data.frame()
+    ## (Add a surrogate Index as the first column for numbering the responses)
+    table_data <- bind_cols(data.frame(ID = seq(1,nrow(data))),
+                            data %>% as.data.frame())
     
 
     ## Plot the table of the data
@@ -2130,6 +2174,44 @@ server <- function(input, output, session) {
     }
   })
   
+  
+  #### Observe Event -- Update All Static RV Plot Colors ####
+  ## Save each non-dynamic color input from Plot Customizations to RV
+  ## (Need this because the colourInputs cannot be saved to the server)
+  observeEvent(input$glAllColor, {
+    rv$plot_colors_static$grid_lines_all <- input$glAllColor
+  }) 
+  observeEvent(input$glXAllColor, {
+    rv$plot_colors_static$grid_lines_x_all <- input$glXAllColor
+  }) 
+  observeEvent(input$glMajorXColor, {
+    rv$plot_colors_static$grid_lines_x_minor <- input$glMajorXColor
+  }) 
+  observeEvent(input$glYAllColor, {
+    rv$plot_colors_static$grid_lines_y_all <- input$glYAllColor
+  }) 
+  observeEvent(input$glMajorYColor, {
+    rv$plot_colors_static$grid_lines_y_major <- input$glMajorYColor
+  }) 
+  observeEvent(input$glMinorYColor, {
+    rv$plot_colors_static$grid_lines_y_minor <- input$glMinorYColor
+  }) 
+  observeEvent(input$plotBackgroundFill, {
+    rv$plot_colors_static$plot_background_fill <- input$plotBackgroundFill
+  }) 
+  observeEvent(input$plotBackgroundColor, {
+    rv$plot_colors_static$plot_background_color <- input$plotBackgroundColor
+  }) 
+  observeEvent(input$plotBackgroundColor, {
+    rv$plot_colors_static$plotBackgroundColor<- input$plotBackgroundColor
+  }) 
+  observeEvent(input$panelBackgroundFill, {
+    rv$plot_colors_static$panel_background_fill <- input$panelBackgroundFill
+  }) 
+  observeEvent(input$panelBackgroundColor, {
+    rv$plot_colors_static$panel_background_color <- input$panelBackgroundColor
+  }) 
+
 
   
   
@@ -2180,6 +2262,7 @@ server <- function(input, output, session) {
     return(rv$num_topics > 0) 
   })
   outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
+  
 
 
   
@@ -2201,14 +2284,14 @@ server <- function(input, output, session) {
   ## Displays table of responses
   output$table <- renderDataTable({
     # Save created table to reactive values
-    rv$table <- updatePushed_plotTable()
+    table <- updatePushed_plotTable()
     # Plot if return value is not NA
-    if (!is.null(rv$table)) {
-      return(rv$table)
+    if (!is.null(table)) {
+      return(table)
     } else {
       print("Cannot render table; data is NULL")
     }
-  }, options = list(pageLength = 10))
+  }, options = list(pageLength = 5))
   
   
   #### Render Aesthetic Customization UI's ####
@@ -2218,116 +2301,138 @@ server <- function(input, output, session) {
     ## Individual aesthetics
     if (input$aesOptions == "Individual Bar Colors") {
       
-      ## A list of UI's for the default category
-      default_uis_list <- lapply(1:1, function(i) {
+      # Data frame to hold all of the id's and values for creating the new UI's
+      # (For creating the UI's and observe events later on)
+      new_ui_vals <- data.frame(
+        id = character(),
+        ctg_name = character(),
+        fill_id = character(),
+        color_id = character(),
+        no_fill_id = character(),
+        no_color_id = character(),
+        linewidth_id = character(),
+        linetype_id = character(),
+        fill_init_val = character(),
+        color_init_val = character()
+      )
+      
+      ## Add Default Category UI values to the new_ui_vals data frame
+      new_def_vals <- lapply(1:1, function(i) {
         
-        # Default Category id
-        default_id <- paste0("default_aes_indiv")
+        # Initial ColorInput UI Values
+        def_id <- "default_aes_indiv"
+        def_fill_id <- "default_aes_indiv_fill" 
+        def_color_id <- "default_aes_indiv_color" 
+        def_fill_init <- "gray"
+        def_color_init <- "black"
         
-        # List of Category Default UI's for individual aes customization
-        list(
+        # Create and fill a new row of values
+        vals <- data.frame(
+          id = def_id,
+          ctg_name = input$defaultName,
+          fill_id = def_fill_id,
+          color_id = def_color_id,
+          no_fill_id = "default_aes_indiv_no_fill",
+          no_color_id = "default_aes_indiv_no_color",
+          linewidth_id = "default_aes_indiv_line_width",
+          linetype_id = "default_aes_indiv_line_type",
+          fill_init_val = def_fill_init,
+          color_init_val = def_color_init
+        )
+        # Return the new row of values
+        return(vals)
+      })
+      new_ui_vals <-  bind_rows(new_ui_vals, new_def_vals)
+      # Add all other Category UI values to the new_ui_vals data frame 
+      # (if there are any other categories)
+      if (nrow(rv$all_categories) > 0) {
+        new_ctg_vars <- lapply(1:nrow(rv$all_categories), function(i) {
+          
+          # Initial Variables
+          current_ctg_id <- rv$all_categories$ctg_id[i]
+          current_ctg_name <- rv$all_categories$ctg_name[i]
+          aes_id <- paste0(current_ctg_id, "_aes_indiv")
+          aes_fill_id <- paste0(current_ctg_id, "_aes_indiv_fill")  
+          aes_color_id <- paste0(current_ctg_id, "_aes_indiv_color")
+          aes_fill_init <- "gray"
+          aes_color_init <- "black"
+          
+          # Proceed if the current category has at least one rule
+          if (rv$all_categories$ctg_num_rules[i] > 0) {
+            
+            # Generate new row of Default Category UI values and id's
+            new_ctg_vars <- data.frame(
+              id = aes_id,
+              ctg_name = current_ctg_name,
+              fill_id = aes_fill_id,
+              color_id = aes_color_id,
+              no_fill_id = paste0(aes_id, "_no_fill"),
+              no_color_id = paste0(aes_id, "_no_color"),
+              linewidth_id = paste0(aes_id, "_line_width"),
+              linetype_id = paste0(aes_id, "_line_type"),
+              fill_init_val = aes_fill_init,
+              color_init_val =  aes_color_init
+            )
+          }
+        })
+        new_ui_vals <-  bind_rows(new_ui_vals, new_ctg_vars)
+      }
+      
+      ## Create a list of UI's for each Category (row) in the RV indiv_aes_ui_vals df
+      uis_list <- lapply(1:nrow(new_ui_vals), function(i) {
+        
+        # Current Category UI Variables
+        aes_id <- new_ui_vals$id[i]
+        aes_ctg_name <- new_ui_vals$ctg_name[i]
+        aes_fill_id <- new_ui_vals$fill_id[i]
+        aes_color_id <- new_ui_vals$color_id[i]
+        aes_no_fill_id <- new_ui_vals$no_fill_id[i]
+        aes_no_color_id <- new_ui_vals$no_color_id[i]
+        aes_linewidth_id <- new_ui_vals$linewidth_id[i]
+        aes_linetype_id <- new_ui_vals$linetype_id[i]
+        aes_fill_init_val <- new_ui_vals$fill_init_val[i]
+        aes_color_init_val <- new_ui_vals$color_init_val[i]
+        header_text <- if_else(i == 1, 
+                               paste0("Default Category: ", aes_ctg_name),
+                               paste0("Category ", i-1, ": ", aes_ctg_name))
+        
+        # Create list of new UI's
+        list <- list(
+          # Category Header
           hr(),
-          h4(paste0("Default Category: ", input$defaultName)),
+          h4(header_text),
           br(),
           flowLayout(
-            
             # Fill
-            colourpicker::colourInput(paste0(default_id, "_fill"), label = "Fill", value = "gray", 
-                        allowTransparent = TRUE, returnName = TRUE),
-            
+            colourpicker::colourInput(aes_fill_id, label = "Fill", value = aes_fill_init_val, 
+                                      allowTransparent = TRUE, returnName = TRUE),
             # No Fill?
-            checkboxInput(paste0(default_id, "_no_fill"), label = "No Fill", value = FALSE),
-            
-            # Color
-            colourpicker::colourInput(paste0(default_id, "_color"), label = "Color", value = "black", 
-                        allowTransparent = TRUE, returnName = TRUE),
-            
+            checkboxInput(aes_no_fill_id, label = "No Fill", value = FALSE),
             # No Color?
-            checkboxInput(paste0(default_id, "_no_color"), label = "No Color", value = TRUE),
+            checkboxInput(aes_no_color_id, label = "No Color", value = TRUE),
             conditionalPanel(
-              condition = paste0("!input.",default_id, "_no_color"),
-              fluidRow(
-                column(width = 5,
-                       
-                       # Line Width
-                       numericInput(paste0(default_id, "_line_width"), label = "Line Width", 
-                                    value = 0.5, min = 0, max = 10, step = 0.01)),
-                column(width = 7,
-                       
-                       # Linetype
-                       selectInput(paste0(default_id, "_line_type"), label = "Line Type", selected = "solid", 
-                                   choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash")))
+              condition = paste0("!input.",aes_no_color_id),
+              flowLayout(
+                # Color
+                colourpicker::colourInput(aes_color_id, label = "Color", value = aes_color_init_val,
+                                          allowTransparent = TRUE, returnName = TRUE),
+                # Line Width
+                numericInput(aes_linewidth_id, label = "Line Width", 
+                             value = 0.5, min = 0, max = 10, step = 0.01),
+                # Line Type
+                selectInput(aes_linetype_id, label = "Line Type", selected = "solid", 
+                            choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash"))
               )
             )
           )
         )
+        # Return the new UI's
+        return(list)
       })
-      
-      ## A list of new UI's for each existing category
-      uis_list <- lapply(1:nrow(rv$all_categories), function(i) {
-        
-        # Category variables
-        current_ctg_id <- rv$all_categories$ctg_id[i]
-        current_ctg_name <- rv$all_categories$ctg_name[i]
-        
-        # Proceed if the current category has at least one rule
-        if (rv$all_categories$ctg_num_rules[i] > 0) {
-          
-          # Unique id for all ui's in category
-          aes_id <- paste0(current_ctg_id, "_aes_indiv")
-          list(
-            
-            # Category Header
-            hr(),
-            h4(paste0("Category ", i, ": ", current_ctg_name)),
-            br(),
-            flowLayout(
-              
-              # Fill
-              colourpicker::colourInput(paste0(aes_id, "_fill"), label = "Fill", value = "gray", 
-                          allowTransparent = TRUE, returnName = TRUE),
-              
-              # No Fill?
-              checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
-              
-              # Color
-              colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
-                          allowTransparent = TRUE, returnName = TRUE),
-              
-              # No Color?
-              checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
-              conditionalPanel(
-                condition = paste0("!input.",aes_id, "_no_color"),
-                fluidRow(
-                  column(width = 5,
-                         
-                         # Line Width
-                         numericInput(paste0(aes_id, "_line_width"), label = "Line Width", 
-                                      value = 0.5, min = 0, max = 10, step = 0.01)),
-                  column(width = 7,
-                         
-                         # Linetype
-                         selectInput(paste0(aes_id, "_line_type"), label = "Line Type", selected = "solid", 
-                                     choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash")))
-                )
-              )
-            )
-          )
-        }
-      })
-      
-      ## Un-list the UI lists
-      default_uis <- unlist(default_uis_list, recursive = FALSE)
-      ctgs_uis <- unlist(uis_list, recursive = FALSE)
-      
-      ## Append all category UI's to default category, if not NULL
-      if (!is.null(ctgs_uis)) {
-        default_uis <- append(default_uis, ctgs_uis)
-      }
-      
+
       ## Render the UI's
-      do.call(tagList, default_uis)
-        
+      do.call(tagList, uis_list)
+      
     } else {
       
       ## Uniform aesthetics
@@ -2337,7 +2442,7 @@ server <- function(input, output, session) {
         aes_id <- paste0("aes_uniform")
         
         # Render this list of ui's
-        tagList(
+        unif_uis_list <- tagList(
           hr(),
           flowLayout(
             
@@ -2348,27 +2453,27 @@ server <- function(input, output, session) {
             # No Fill?
             checkboxInput(paste0(aes_id, "_no_fill"), label = "No Fill", value = FALSE),
             
-            # Color
-            colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
-                        allowTransparent = TRUE, returnName = TRUE),
-            
             # No Color?
             checkboxInput(paste0(aes_id, "_no_color"), label = "No Color", value = TRUE),
             conditionalPanel(
               condition = paste0("!input.",aes_id, "_no_color"),
-              fluidRow(
-                column(width = 5,
-                       # Line Width
-                       numericInput(paste0(aes_id, "_line_width"), label = "Line Width", 
-                                    value = 0.5, min = 0, max = 10, step = 0.01)),
-                column(width = 7,
-                       # Linetype
-                       selectInput(paste0(aes_id, "_line_type"), label = "Line Type", selected = "solid", 
-                                   choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash")))
+              flowLayout(
+                # Color
+                colourpicker::colourInput(paste0(aes_id, "_color"), label = "Color", value = "black",
+                                          allowTransparent = TRUE, returnName = TRUE),
+                # Line Width
+                numericInput(paste0(aes_id, "_line_width"), label = "Line Width", 
+                             value = 0.5, min = 0, max = 10, step = 0.01),
+                # Line Type
+                selectInput(paste0(aes_id, "_line_type"), label = "Line Type", selected = "solid", 
+                            choices = c("blank","solid","dashed","dotted","dotdash","longdash","twodash"))
               )
             )
           )
         )
+        
+        ## Render the UI's
+        do.call(tagList, unif_uis_list)
       }
     }
   })
