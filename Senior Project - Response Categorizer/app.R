@@ -7,8 +7,9 @@
 
 #### Libraries ####
 
-pacman::p_load(shiny,shinyjs,shinyBS,shinybusy, shinyalert,tibble,readr,haven,readxl,dplyr,ggplot2,ggthemes,
-               tidyverse,rlist,stringr,colourpicker,stringi,topicmodels,tm,quanteda,slam)
+pacman::p_load(shiny,shinyjs,shinyBS,shinybusy,shinyalert,tibble,readr,haven,
+               readxl,dplyr,ggplot2,ggthemes,tidyverse,rlist,stringr,colourpicker,
+               stringi,topicmodels,tm,quanteda,slam,profvis)
 
 
 
@@ -124,21 +125,21 @@ ui <- function(request) {
       #### Update Button ####
       actionButton("update", "Update"),
       #### Save (Bookmark) Button ####
-      bookmarkButton(label = "Save", icon = icon("bookmark")
-                     # , id = "bookmark_main_save"
-                     # , title = ""
-      )
+      bookmarkButton(label = "Save", icon = icon("bookmark"))
     ),
     
     
     br(),
     
+    #### Profvis UI ####
+    profvis_ui("profiler"),
+    
     #### Show Reactive Values ####
-    wellPanel(
-      h3("Reactive Values"),
-      verbatimTextOutput("show_rvs", placeholder = TRUE),
-      style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
-    ),
+    # wellPanel(
+    #   h3("Reactive Values"),
+    #   verbatimTextOutput("show_rvs", placeholder = TRUE),
+    #   style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
+    # ),
     
     
     #### Main Panel ####
@@ -266,7 +267,7 @@ ui <- function(request) {
       #### * Update Conditional Panel ####
       # The Plot and Table tabsets will appear when a category has been added
       conditionalPanel(
-        condition = "input.update",
+        condition = "output.showResults",
         
         #### * * Plot and Table Tabset ####
         tabsetPanel(id = "tabset_main_results",
@@ -656,12 +657,19 @@ ui <- function(request) {
 
 server <- function(input, output, session) {
   
+  #### Profvis ####
+  callModule(profvis_server, id = "profiler")
+  
+  
   #### Reactive Values ####
   
   ## A reactive values object whose variables can be created, altered, and removed by any function in server
   rv <- reactiveValues(
     file_is_valid = FALSE,
     num_ctgs = 0, # For keeping track of how many categories have been created
+    show_results = FALSE, # For showing/hiding main outputs
+    plot = NULL,
+    table = NULL,
     # Allows multiple sources to create Categories 
     ctgs_to_add = data.frame( 
       ui_has_been_made = logical(),
@@ -704,14 +712,14 @@ server <- function(input, output, session) {
     ),
     # Various variables for converting topics to Categories
     num_topics = 0,
-    topics_to_add = data.frame(
-      t = integer(),
-      title = character(),
-      terms = character(),
-      ctg_id = character(),
-      rule_id = character(),
-      buttons_pushed = logical()
-      ),
+    # topics_to_add = data.frame(
+    #   t = integer(),
+    #   title = character(),
+    #   terms = character(),
+    #   ctg_id = character(),
+    #   rule_id = character(),
+    #   buttons_pushed = logical()
+    #   ),
     ## The color inputs don't save to server, so need to save them in these data frames
     # All color inputs' values created in UI above
     plot_colors_static = data.frame(
@@ -745,14 +753,34 @@ server <- function(input, output, session) {
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmark(function(state) {
     
-    # Save all Category and rule variables
-    # (When the RV is added to, the ctg/rule will be created automatically)
-    state$values$ctgs_to_add <- rv$ctgs_to_add   
-    state$values$rules_to_add <- rv$rules_to_add
+    # Save all EXISTING Category and Rule Values
+    #
+    # The rows from the "ctgs_to_add" and "rules_to_add" RV tables don't get removed,
+    # so we must only save the categories/rules from those RV tables that actually 
+    # exist (i.e. are in the "all_categories" and "all_rules" RV tables) so that
+    # we don't produce empty categories or rules when loading the saved state.
+    ctgs_to_save <- rv$ctgs_to_add %>% 
+      filter(new_ctg_id %in% rv$all_categories$ctg_id)
+    
+    rules_to_save <- rv$rules_to_add %>% 
+      filter(new_rule_id %in% rv$all_rules$rule_id)
+    
+    
+    #### >>>> Multiple blank rules when Loaded <<<< ####
+    
+    
+    state$values$ctgs_to_add <- ctgs_to_save   
+    state$values$rules_to_add <- rules_to_save
     
     # Save all Color Input values
     state$values$ctg_aesthetics <- rv$ctg_aesthetics
     state$values$plot_colors_static <- rv$plot_colors_static
+    
+    # Save the plot
+    state$values$plot <- rv$plot
+    
+    # Save the table
+    state$values$table <- rv$table
     
     # Show the sharable URL modal
     showBookmarkUrlModal
@@ -760,7 +788,7 @@ server <- function(input, output, session) {
   
   
   
-  #### onRestore() ####
+  #### onRestored() ####
   ## Read in all reactive values and other things AFTER restoring a saved (bookmarked) state
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onRestored(function(state) {
@@ -768,11 +796,11 @@ server <- function(input, output, session) {
     ## When the saved state is restored, all simple UI inputs will be 
     ## updated automatically with the UI input values from the saved state. 
     ##
-    ## However, advanced UIs like colorInputs and Category/Rule UIs
-    ## WILL NOT be updated.
+    ## However, advanced and dynmaically created UIs like colorInputs and 
+    ## Category/Rule UIs WILL NOT be updated.
     ##
     ## This function, therefore, runs AFTER the saved state is restored to make sure 
-    ## all advanced UI's are loaded properly.
+    ## all UI's are loaded properly.
     
     
     ## Load Categories
@@ -789,33 +817,73 @@ server <- function(input, output, session) {
     saved_rules <- state$values$rules_to_add 
     # Change the "ui_has_been_made" column to FALSE so the app will create the UIs
     saved_rules$ui_has_been_made <- FALSE
-    
-    # print("Saved Rules to Add:")
-    # glimpse(saved_rules)
-    # 
-    # print("\nCurrent Rules to Add:")
-    # glimpse(rv$rules_to_add)
-    
     # Replace the current RV data frame and let the app do the rest!
     rv$rules_to_add <- saved_rules
     
     
-    #### >>>>> Extra Rules created when Restored? <<<<< ####
+    ## Load/Update Static Color Input UIs
+    
+    # Load static color UI's
+    rv$plot_colors_static <- state$values$plot_colors_static 
+    # Update all static colorInput UI's to match the loaded colors
+    for (i in 1:ncol(rv$plot_colors_static)) {
+      local({
+        # Get the correct id for the UI based on the column name
+        ui_id <- switch (colnames(rv$plot_colors_static)[i],
+                         'grid_lines_all'         = 'glAllColor',
+                         'grid_lines_x_all'       = 'glXAllColor',
+                         'grid_lines_x_major'     = 'glMajorXColor',
+                         'grid_lines_x_minor'     = 'glMinorXColor',
+                         'grid_lines_y_all'       = 'glYAllColor',
+                         'grid_lines_y_major'     = 'glMajorYColor',
+                         'grid_lines_y_minor'     = 'glMinorYColor',
+                         'plot_background_fill'   = 'plotBackgroundFill',
+                         'plot_background_color'  = 'plotBackgroundColor',
+                         'panel_background_fill'  = 'plotBackgroundColor',
+                         'panel_background_color' = 'panelBackgroundFill',
+                         'plotBackgroundColor'    = 'panelBackgroundColor'
+        )
+        # Update the colorInput UI
+        colourpicker::updateColourInput(session, inputId = ui_id, value = rv$plot_colors_static[1,i])
+      })
+    }
     
     
-    ## Load Plot?
+    ## Load/Update Dynamic Color Input UIs
+    
+    # Load static color UI's
+    rv$ctg_aesthetics <- state$values$ctg_aesthetics
+    # Update all dynamic colorInput UI's to match the loaded colors (either Uniform or Individual Bar Colors)
+    if (input$aesOptions == "Uniform Bar Colors") {
+      # Change just the Uniform Bar Color Fill/Color colorInput UI's
+      colourpicker::updateColourInput(session, inputId = 'aes_uniform_fill', value = rv$ctg_aesthetics$fill[1])
+      colourpicker::updateColourInput(session, inputId = 'aes_uniform_color', value = rv$ctg_aesthetics$color[1])
+    } else {
+      # Change all Individual Bar Color Fill/Color colorInput UI's
+      for (i in 1:nrow(rv$ctg_aesthetics)) {
+        local({
+          # Initial Variables
+          fill_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_fill')
+          color_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_color')
+          new_fill <- rv$ctg_aesthetics$fill[i]
+          new_color <- rv$ctg_aesthetics$color[i]
+          # Update the colorInput UI's
+          colourpicker::updateColourInput(session, inputId = fill_ui_id, value = new_fill)
+          colourpicker::updateColourInput(session, inputId = color_ui_id, value = color_ui_id)
+        })
+      }
+    }
     
     
+    ## Load the plot
+    rv$plot <- state$values$plot
+    
+    ## Load the table
+    rv$table <- state$value$table 
     
     
-    ## Load Static Color Input UIs
-    
-    
-    
-    
-    ## Load Dynamic Color Input UIs
-    
-    
+    ## Show the Plot, Table, and Customizations
+    rv$show_results <- TRUE
   })
   
   
@@ -823,7 +891,7 @@ server <- function(input, output, session) {
   ## Excludes buttons and id's from being saved (bookmarked) and
   ## prevents the from running when bookmark is loaded
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
-  setBookmarkExclude(c("update","tf_go","ctgAdd"))
+  setBookmarkExclude(c("update","tf_go"))
   
   
   
@@ -1413,6 +1481,9 @@ server <- function(input, output, session) {
       # Add new theme element to the plot
       plot <- plot + theme(panel.background = new_panel)
     }
+    
+    ## Save plot to Reactive Values
+    rv$plot <- plot
 
     ## Return the finished plot to be plotted
     return(plot)
@@ -1425,7 +1496,6 @@ server <- function(input, output, session) {
     ## Get the responses data sorted into categories
     data <- sortData_GG() 
     
-    
     ## Skip if data is null or no categories have been made
     if (is.null(data) | nrow(rv$all_categories) == 0) {
       return(NULL)
@@ -1436,10 +1506,11 @@ server <- function(input, output, session) {
     table_data <- bind_cols(data.frame(ID = seq(1,nrow(data))),
                             data %>% as.data.frame())
     
+    ## Save table to reactive values
+    rv$table <- table_data
 
     ## Plot the table of the data
     return(table_data)
-
   })
   
   
@@ -1461,7 +1532,8 @@ server <- function(input, output, session) {
       
       ### Read in the Data
       
-      df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
+      # df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
+      df <- getData()
       
       # Increment Progress Bar
       incProgress(amount = incr_val, detail = "Pre-processing the data")
@@ -1551,6 +1623,8 @@ server <- function(input, output, session) {
       # Save the "best" model (the one with the lowest mean entropy)
       # Reference: https://stackoverflow.com/questions/21422188/how-to-get-name-from-a-value-in-an-r-vector-with-names
       best_model <- models[[names(entropies)[entropies == min(entropies)]]]
+      
+      print(best_model)
       
       # Increment Progress Bar
       incProgress(amount = incr_val, detail = "Retrieving Final Results")
@@ -1647,14 +1721,14 @@ server <- function(input, output, session) {
           ctg_add_rule_button_id <- paste0(ctg_id, "_add_rule")
           remove_ctg_id <- paste0("remove_ctg", id_add)
           remove_ctg_button_id <- paste0("remove_ctg_button_", id_add)
+          ctg_init_name <- new_ctg_name
           
           
           ## Define Initial Variables
-          ctg_init_name <- new_ctg_name
-          if (nrow(rv$topics_to_add) > 0) {
-            # Insert Topic's Title if new Category is a topic to be converted
-            ctg_init_name <- rv$topics_to_add$title[rv$topics_to_add$ctg_id == ctg_id]
-          }
+          # if (nrow(rv$topics_to_add) > 0) {
+          #   # Insert Topic's Title if new Category is a topic to be converted
+          #   ctg_init_name <- rv$topics_to_add$title[rv$topics_to_add$ctg_id == ctg_id]
+          # }
           
           
           #### * Insert Category UI's ####
@@ -1696,9 +1770,6 @@ server <- function(input, output, session) {
               actionButton(remove_ctg_button_id, paste0("Remove Category ", id_add))
             )
           )
-          
-          # print(paste0("Created '", ctg_id, "' on ctgAdd = ", id_add))
-          
           
           #### * Update Category RV's ####
           
@@ -1805,7 +1876,7 @@ server <- function(input, output, session) {
   
   #### Observe Event -- Add Rule (rv$rules_to_add) ####
   ## Creates all Rule UI when the RV dataframe is updated.
-  observeEvent(rv$rules_to_add, ignoreNULL = TRUE, ignoreInit = TRUE, {
+  observeEvent(rv$rules_to_add, ignoreInit = TRUE, {
     
     ## Loop through each row in the RV dataframe and create rules as necessary
     for (i in 1:nrow(rv$rules_to_add)) {
@@ -2206,26 +2277,26 @@ server <- function(input, output, session) {
   
   #### Observe Event -- New Topic to Convert Added ####
   ## Will finish converting a newly added topic to a category
-  observeEvent(rv$topics_to_add, ignoreInit = TRUE, {
-    
-    # Loop through each topic to add and finish conversion, if applicable
-    for (t in 1:nrow(rv$topics_to_add)) {
-
-      # Check if "+ Rule" button has been created and hasn't been pushed yet
-      if (str_length(rv$topics_to_add$rule_id[t]) > 0 & 
-          rv$topics_to_add$buttons_pushed[t] == FALSE) {
-        
-        
-        # Push the "+ Rule" button
-        click(rv$topics_to_add$rule_id[t], asis = TRUE)
-        
-        # Make sure the "+ Rule" button isn't pushed twice
-        rv$topics_to_add$buttons_pushed[t] <- TRUE
-        
-
-      } else { } # Nothing Happens
-    }
-  })
+  # observeEvent(rv$topics_to_add, ignoreInit = TRUE, {
+  #   
+  #   # Loop through each topic to add and finish conversion, if applicable
+  #   for (t in 1:nrow(rv$topics_to_add)) {
+  # 
+  #     # Check if "+ Rule" button has been created and hasn't been pushed yet
+  #     if (str_length(rv$topics_to_add$rule_id[t]) > 0 & 
+  #         rv$topics_to_add$buttons_pushed[t] == FALSE) {
+  #       
+  #       
+  #       # Push the "+ Rule" button
+  #       click(rv$topics_to_add$rule_id[t], asis = TRUE)
+  #       
+  #       # Make sure the "+ Rule" button isn't pushed twice
+  #       rv$topics_to_add$buttons_pushed[t] <- TRUE
+  #       
+  # 
+  #     } else { } # Nothing Happens
+  #   }
+  # })
   
   
   #### Observe Event -- Show Tooltips ####
@@ -2330,27 +2401,6 @@ server <- function(input, output, session) {
                  will be counted. If not selected, each response will be assigned 
                  to only the first category it "matches".
                  ')
-      
-      # # Plot Customizations Popover
-      # addPopover(session, id = "", trigger = "hover",
-      #            title = " Info",
-      #            content = "
-      #            
-      #            ")
-      
-      # # Plot Customizations Popover
-      # addPopover(session, id = "", trigger = "hover",
-      #            title = " Info",
-      #            content = "
-      #            
-      #            ")
-      
-      # # Plot Customizations Popover
-      # addPopover(session, id = "", trigger = "hover",
-      #            title = " Info",
-      #            content = "
-      #            
-      #            ")
     
     } else {
       
@@ -2381,7 +2431,10 @@ server <- function(input, output, session) {
     rv$plot_colors_static$grid_lines_x_all <- input$glXAllColor
   }) 
   observeEvent(input$glMajorXColor, {
-    rv$plot_colors_static$grid_lines_x_minor <- input$glMajorXColor
+    rv$plot_colors_static$grid_lines_x_major <- input$glMajorXColor
+  }) 
+  observeEvent(input$glMinorXColor, {
+    rv$plot_colors_static$grid_lines_x_minor <- input$glMinorXColor
   }) 
   observeEvent(input$glYAllColor, {
     rv$plot_colors_static$grid_lines_y_all <- input$glYAllColor
@@ -2407,6 +2460,14 @@ server <- function(input, output, session) {
   observeEvent(input$panelBackgroundColor, {
     rv$plot_colors_static$panel_background_color <- input$panelBackgroundColor
   }) 
+  
+  
+  #### Observe Event -- Update Pushed ####
+  ## Changes rv$show_results to true when "Update" is pushed if there are categories
+  ## (This will show the Plot, Table, and Customizations)
+  observeEvent(input$update, {
+    rv$show_results <- ifelse(rv$num_ctgs > 0, TRUE, FALSE)
+  })
 
 
   
@@ -2427,12 +2488,12 @@ server <- function(input, output, session) {
   outputOptions(output, 'fileValid', suspendWhenHidden = FALSE)
 
   
-  #### Event Reactive -- categoriesAdded ####
-  ## Returns true if categories have been added
-  output$categoriesAdded <- eventReactive(input$update, {
-    ifelse(input$ctgAdd > 0, return(TRUE), return(FALSE))    
+  #### Event Reactive -- showResults ####
+  ## Shows the Plot, Table, and Customizations when "Update" is pushed
+  output$showResults <- eventReactive(rv$show_results, {
+    return(rv$show_results)
   })
-  outputOptions(output, 'categoriesAdded', suspendWhenHidden = FALSE)
+  outputOptions(output, 'showResults', suspendWhenHidden = FALSE)
   
   
   #### Event Reactive -- plotDisplayed ####
@@ -2465,11 +2526,13 @@ server <- function(input, output, session) {
   #### Render Plot ####
   ## Displays plot of responses
   output$plot <- renderPlot({
-    # Save created plot to reactive values
-    rv$plot <- updatePushed_plotGG()
-    # Render plot saved in reactive values
+    # Create plot
+    # plot <- updatePushed_plotGG()
+    # Save created plot to reactive values, if not NULL
+    # if (!is.null(plot)) { rv$plot <- plot }
+    # Render plot saved in reactive values, if not NULL
     if (!is.null(rv$plot)) {
-      print(rv$plot)
+      return(rv$plot)
     } else {
       print("Cannot render plot; data is NULL")
     }
@@ -2480,10 +2543,10 @@ server <- function(input, output, session) {
   ## Displays table of responses
   output$table <- renderDataTable({
     # Save created table to reactive values
-    table <- updatePushed_plotTable()
+    # table <- updatePushed_plotTable()
     # Plot if return value is not NA
-    if (!is.null(table)) {
-      return(table)
+    if (!is.null(rv$table)) {
+      return(rv$table)
     } else {
       print("Cannot render table; data is NULL")
     }
@@ -2699,10 +2762,10 @@ server <- function(input, output, session) {
   
   
   #### Render RV Table ####
-  output$show_rvs <- renderPrint({
-    # Show all reactive values as a data table
-    print(reactiveValuesToList(rv))
-  })
+  # output$show_rvs <- renderPrint({
+  #   # Show all reactive values as a data table
+  #   print(reactiveValuesToList(rv))
+  # })
 }
 
 
