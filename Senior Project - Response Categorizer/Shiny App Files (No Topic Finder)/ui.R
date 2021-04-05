@@ -14,6 +14,7 @@ ui <- function(request) {
     useShinyjs(), # Set up shinyjs for clicking buttons with code
     useShinyalert(), # For pop-up message modals (Reference: https://deanattali.com/blog/shinyalert-package/)
     
+    
     # Add Busy Spinner
     add_busy_spinner(
       spin = "semipolar",
@@ -33,33 +34,41 @@ ui <- function(request) {
     #### Sidebar Panel ####
     sidebarPanel(
       
-      #### * Browse File Button ####
+      #### * Import Responses ####
       wellPanel(
         h4(id = "import_title", "Import Responses"),
         fileInput("responses", "", 
                   buttonLabel = "Browse",
-                  placeholder = "Excel / CSV",
+                  placeholder = "1-Column Excel/CSV",
                   accept = c("text/csv",
                              "text/comma-separated-values,text/plain",
-                             ".xlsx", 
+                             ".xlsx",
+                             ".csv",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        )
+        ),
+        ## Example Datasets ##
+        actionLink("exampe_datasets", 
+                   label = "Example Datasets", 
+                   icon = icon("table"))
       ),
       
       
       #### * Help Section ####
       
       wellPanel(
+        
         h4("Help"),
         br(),
         flowLayout(
           #### * * Main Info Action Link 
           actionLink("info_btn_main", "About", icon = icon("question-circle")),
           #### * * Watch Tutorials Action Link 
-          actionLink("watch_tutorials", "Tutorials", icon = icon("graduation-cap")),
+          # actionLink("watch_tutorials", "Tutorials", icon = icon("graduation-cap")),
+          actionLink("tutorial_link_demo", "Demo", icon = icon("chalkboard-teacher"),
+                     onclick = "window.open('https://web.microsoftstream.com/video/fae9cf0e-0d4b-45d8-9b0f-278dd999403c')" ),
           #### * * Show Tooltips Checkbox 
           checkboxInput("show_tooltips", "Show Tooltips", value = TRUE)
-        ),
+        )
       ),
       
       
@@ -68,34 +77,51 @@ ui <- function(request) {
       conditionalPanel(
         condition = "output.fileValid",
         
-        #### * * Find Categories for Me Button ####
-        actionButton("find_categories", "Find Categories for Me",
-                     style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f"),
-        
-        br(),
-        br(),
-        
         #### * * Add Category Button ####
         actionButton("ctgAdd", "Add Category"),
         
         #### * * Add Category Conditional Panel ####
         conditionalPanel(
           condition = "input.ctgAdd",
+          
+          #### * * * Default Category UIs ####
           wellPanel(
-            
-            #### * * * Default Category Name ####
+            # Default Category Name
             textInput("defaultName", "Default",
                       label = "Default Category Name"),
-            
-            #### * * * Remove Category Buttons Placeholder ####
+            # Remove Category Buttons Placeholder
             tags$div(id = "removeCtgButton")
-            
           ),
           
-          #### * * Multiple Categories Checkbox ####
-          # Option to signify whether to have one or multiple categories per response
-          checkboxInput("multCtgsPerResponse", 
-                        label = "Multiple Categories per Response", value = FALSE),
+          #### * * * Categorization Options ####
+          wellPanel(
+            ## Title (for overall tooltip)
+            h4(id = "categorization_options_title", "Categorization Options"),
+            ## Count By Radiobuttons
+            radioButtons("count_by", 
+                         label = "Count By",
+                         choices = c("First Match", "All Matches"),
+                         selected = "First Match", 
+                         inline = FALSE),
+            ## Multiple Categories Checkbox
+            # Option to signify whether to have one or multiple categories per response
+            checkboxInput("multCtgsPerResponse", 
+                          label = "Multiple Categories per Response", 
+                          value = FALSE),
+            flowLayout(
+              # ## See Categorization Options Explanation action link
+              # actionLink("see_ctgzn_expltn_link", 
+              #            label = "What do these options do?",
+              #            icon = icon("question-circle")),
+              ## Give it a try action link
+              actionLink("give_it_a_try", 
+                         label = "Play with Options",
+                         icon = icon("table"), 
+                         onclick ="window.open('https://shiny.byui.edu/content/1314/?_state_id_=dbd11633b9e3a8f3')"
+              )
+            )
+          ),
+          
           
           #### * * Category Placeholder ####
           # To hold all of the categories and their rules
@@ -105,14 +131,30 @@ ui <- function(request) {
             )
           )
         )
-      )
+      ),   
+      br(),
+      br(),
+      br(),
+      br()
     ),
     
     flowLayout(
       #### Update Button ####
       actionButton("update", "Update"),
+      
       #### Save (Bookmark) Button ####
-      bookmarkButton(label = "Save", icon = icon("bookmark"))
+      bookmarkButton(label = "Save", icon = icon("bookmark"),
+                     title = "Will save all of your progress (your categories, rules, and visualizations) into a URL.
+                     Make sure to copy this URL into a Word doc or another text file, because you can re-load your saved progress later by activating (clicking) the saved URL while the app is running.
+                     ")
+    ),
+    
+    #### Display Error ####
+    ## Displays the error from the RV values
+    conditionalPanel(
+      condition = "output.displayError",
+      br(),
+      textOutput("error_text")
     ),
     
     
@@ -129,30 +171,26 @@ ui <- function(request) {
     #### Main Panel ####
     mainPanel(
       
-      #### * Tutorial Pop-ups ####
+      #### * Modals ####
       
-      ## All Tutorial Videos ##
-      ## (Contains Action Links to all tutorial video modals (pop-ups) with embedded videos
-      bsModal("tutorials_all", "Tutorials",
-              trigger = "watch_tutorials", size = "s",
+      ## Example Datasets ##
+      ## (Contains Action Links to all example datasets)
+      bsModal("example_datasets_modal", "Example Datasets",
+              trigger = "exampe_datasets", size = "s",
               # Opening
-              h5('Learn how to use the Survey Response Categorizer App by watching these tutorials!'),
+              h5("Don't have any survey responses handy? Try playing around with one of these!"),
               hr(),
-              # Links to All Tutorial Videos
+              # Links to All Example Datasets
               flowLayout(
                 wellPanel(
-                  actionLink("tutorial_link_demo", "Demo", icon = icon("chalkboard-teacher") 
-                             , onclick = "window.open('https://web.microsoftstream.com/video/fae9cf0e-0d4b-45d8-9b0f-278dd999403c')"
-                  ),
+                  actionLink("ex_ds_sip_temp", "Desired Outcomes from BYU-Idaho Experience", icon = icon("school") 
+                             , onclick = "window.open('https://shiny.byui.edu/content/1314/?_state_id_=bfb54929c1486d03')"
+                  )
                 )
-                # , wellPanel(
-                #   actionLink("tutorial_link_", "Tutorial", icon = icon("video"))
-                # )
               )
       ),
       
-      
-      #### * Info Button Pop-ups ####
+      ## Info Button Pop-ups ##
       
       ## Help Section Info Button
       bsModal("info_popup_main", "About",
@@ -168,85 +206,38 @@ ui <- function(request) {
       ),
       
       
-      #### * Topic Finder Pop-up Window ####
-      ## Reference: https://ebailey78.github.io/shinyBS/docs/Modals.html
-      bsModal("topic_finder", "Topic Finder", 
-              trigger = "find_categories", size = "l", # Large
-              
-              # Main Info
-              # Reference for embedding link: https://stackoverflow.com/questions/42047422/create-url-hyperlink-in-r-shiny
-              tagList(
-                'The Topic Finder identifies a specific number of abstract topics across all responses using a process called Topic Modeling (see ',
-                a("here", href = "https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf"),
-                ' for full documentation).'
-              ),
-              br(),
-              br(),
-              
-              #### * * TF Buttons ####
-              fluidRow(
-                column(width = 2,
-                       # Go Button
-                       actionButton("tf_go", "Go!",
-                                    style = "color: #fff; background-color: #337ab7; border-color: #2d6a9f")
-                ),
-                column(width = 10,
-                       conditionalPanel(
-                         condition = "output.topicsFound",
-                         # Convert Topics Button
-                         actionButton("tf_convert_topics", "Convert Topics",
-                                      style = "color: #fff; background-color: #17c217; border-color: #15ad15")
-                       )
-                )
-              ),
-              #### * * TF Initial Variables ####
-              wellPanel(
-                
-                # Number of Topics to Find
-                numericInput("tf_num_topics", "Number of Topics to Find",
-                             value = 5, min = 2, max = 10),
-                
-                # Words not to Include
-                textInput("tf_words_not_include", "Words Not to Include",
-                          value = "for, as, when, you, also")
-              ),
-              br(),
-              
-              #### * * TF Results UIs ####
-              conditionalPanel(
-                condition = "output.topicsFound",
-                
-                # Adjust width of Tabs
-                tags$style(HTML(".tabbable > .nav > li > a {width: 250PX;}")),
-                
-                # Results Tabset Panel
-                tabsetPanel(id = "tabset_tf_results",
-                            # Topics Tab
-                            tabPanel(title = strong(id = "topics_tab", "Topics"),
-                                     # Placeholder for Topic UIs
-                                     tags$div(id = "tf_topics")
-                            ),
-                            tabPanel(title = strong(id = "details_tab", "Details"),
-                                     # Details Tabs
-                                     navbarPage(id = "tf_details", title = "",
-                                                tabPanel("View Graph",
-                                                         # Output for Details Plot
-                                                         plotOutput("tf_details_plot", height = "500px")
-                                                ),
-                                                tabPanel("View Table",
-                                                         # Output for Details Data Table
-                                                         dataTableOutput("tf_details_tbl"),
-                                                         # Add Vertical Scroll Bar
-                                                         # Reference: https://stackoverflow.com/questions/47505893/adding-a-vertical-and-horizontal-scroll-bar-to-the-dt-table-in-r-shiny
-                                                         style = "height:500px; overflow-y: scroll; overflow-x: scroll;"
-                                                )
-                                     )
-                            )                          
-                )           
-              )
-      ), 
+      # #### * Categorization Explanation Modal ###
+      # 
+      # ## Help Section Info Button
+      # 
+      # bsModal("ctgzn_expln_modal", "What do the Categorization Options do?",
+      #         trigger = "see_ctgzn_expltn_link", size = "l",
+      #         
+      #         # Text
+      #         h4('The Categorization Options determine what this app should count when assigning 
+      #            responses to categories (the categorization process).'),
+      #         br(),
+      #         h4('What is the Categorization Process?'),
+      #         br(),
+      #         h4('During this stage, every response is "compared"'),
+      #         hr(),
+      #         h4('Below is a table demonstrating how each Categorization Option affects
+      #            the way this app counts during the categorization process.'),
+      #         br(),
+      #         h4('Keep in mind:'),
+      #         h4('"Ctg_a" has one Rule with the keyword "a".'),
+      #         h4('"Ctg_b" has one Rule with the keyword "b".'),
+      #         h4('Responses are first compared to "Ctg_a", then to "Ctg_b".'),
+      #         br(),
+      #         br(),
+      #         imageOutput("ctgzn_img"),
+      #         br(),
+      #         br(),
+      #         h4('Press the "Give it a Try!" link to play around with these conditions and other
+      #            Rule options using the exact same dataset you see above!')
+      #         
+      # ),
       
-      br(),
       
       #### * Update Conditional Panel ####
       # The Plot and Table tabsets will appear when a category has been added
@@ -631,9 +622,7 @@ ui <- function(request) {
       br(),
       br()
     )
-  )
+    )
 }
-
-
 
 

@@ -1,0 +1,12 @@
+name: shiny_app_files_no_topic_finder3
+title: Shiny App Files (No Topic Finder)
+username: mneff14
+account: mneff14
+server: shiny.byui.edu
+hostUrl: https://shiny.byui.edu/__api__
+appId: 1318
+bundleId: 2722
+url: https://shiny.byui.edu/content/1318/
+when: 1616427235.36602
+asMultiple: FALSE
+asStatic: FALSE

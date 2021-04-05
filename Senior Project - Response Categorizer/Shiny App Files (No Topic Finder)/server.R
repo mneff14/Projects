@@ -1,6 +1,14 @@
 ##### ----- SERVER ----- #####
 
 
+# USE R VERSION 3.6.0 TO PUBLISH THIS APP!!!
+
+# (Tools >> Global Options >> General >> R Sessions >> "Change" button to switch.)
+
+# To publish to RStudio Connect with your BYU-Idaho account, follow these steps:
+# https://byuistats.github.io/M335/rstudioconnect.html
+
+
 
 
 server <- function(input, output, session) {
@@ -16,6 +24,10 @@ server <- function(input, output, session) {
     show_results = FALSE, # For showing/hiding main outputs
     plot = NULL,
     table = NULL,
+    # These errors will be printed above the plot and below Update and Save
+    error_to_display = NULL,
+    # Values to help show/hide sections
+    # show_help = FALSE,
     # Allows multiple sources to create Categories 
     ctgs_to_add = data.frame( 
       ui_has_been_made = logical(),
@@ -55,7 +67,9 @@ server <- function(input, output, session) {
       rule_keywords_id = character(),                
       rule_keywords = character(),                
       rule_sort_options_id = character(),  
-      rule_sort_options = character(),                
+      rule_sort_options = character(),                 
+      rule_apply_to_id = character(),  
+      rule_apply_to = character(),                
       rule_standardize_id = character(),                
       rule_standardize = logical(),
       stringsAsFactors = FALSE              
@@ -97,38 +111,49 @@ server <- function(input, output, session) {
   ## Reference: https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmark(function(state) {
     
-    # Save all EXISTING Category and Rule Values
-    #
-    # The rows from the "ctgs_to_add" and "rules_to_add" RV tables don't get removed,
-    # so we must only save the categories/rules from those RV tables that actually 
-    # exist (i.e. are in the "all_categories" and "all_rules" RV tables) so that
-    # we don't produce empty categories or rules when loading the saved state.
-    ctgs_to_save <- rv$ctgs_to_add %>% 
-      filter(new_ctg_id %in% rv$all_categories$ctg_id)
+    # How much to progress the progress bar by after each step
+    inc_amt <- 1 / 7
     
-    rules_to_save <- rv$rules_to_add %>% 
-      filter(new_rule_id %in% rv$all_rules$rule_id)
-    
-    
-    #### >>>> Multiple blank rules when Loaded <<<< ####
-    
-    
-    state$values$ctgs_to_add <- ctgs_to_save   
-    state$values$rules_to_add <- rules_to_save
-    
-    # Save all Color Input values
-    state$values$ctg_aesthetics <- rv$ctg_aesthetics
-    state$values$plot_colors_static <- rv$plot_colors_static
-    
-    # Save the plot
-    state$values$plot <- rv$plot
-    
-    # Save the table
-    state$values$table <- rv$table
-    
-    # Show the sharable URL modal
-    showBookmarkUrlModal
-  })
+    # Show a bar to show the progress of saving the state to the server.
+    withProgress(min = 0, max = 1, message = "Saving State to Server", detail = "Preparing inputs...", {
+      
+      # Save all EXISTING Category and Rule Values
+      #
+      # The rows from the "ctgs_to_add" and "rules_to_add" RV tables don't get removed,
+      # so we must only save the categories/rules from those RV tables that actually 
+      # exist (i.e. are in the "all_categories" and "all_rules" RV tables) so that
+      # we don't produce empty categories or rules when loading the saved state.
+      ctgs_to_save <- rv$ctgs_to_add %>% 
+        filter(new_ctg_id %in% rv$all_categories$ctg_id)
+      
+      rules_to_save <- rv$rules_to_add %>% 
+        filter(new_rule_id %in% rv$all_rules$rule_id)
+      
+      incProgress(amount = inc_amt, detail = "Storing Category Inputs...")
+      state$values$ctgs_to_add <- ctgs_to_save   
+      
+      incProgress(amount = inc_amt, detail = "Storing Rule Inputs...")
+      state$values$rules_to_add <- rules_to_save
+      
+      # Save all Color Input values
+      incProgress(amount = inc_amt, detail = "Storing Bar Color Inputs...")
+      state$values$ctg_aesthetics <- rv$ctg_aesthetics
+      incProgress(amount = inc_amt, detail = "Storing Plot Aesthetic Inputs...")
+      state$values$plot_colors_static <- rv$plot_colors_static
+      
+      # Save the plot
+      incProgress(amount = inc_amt, detail = "Storing Plot...")
+      state$values$plot <- rv$plot
+      
+      # Save the table
+      incProgress(amount = inc_amt, detail = "Storing Table...")
+      state$values$table <- rv$table
+      
+      # Show the sharable URL modal
+      incProgress(amount = inc_amt, detail = "Finished. Showing URL...")
+      showBookmarkUrlModal
+    })
+})
   
   
   
@@ -147,88 +172,109 @@ server <- function(input, output, session) {
     ## all UI's are loaded properly.
     
     
-    ## Load Categories
+    # How much to progress the progress bar by after each step
+    inc_amt <- 1 / 6
     
-    saved_ctgs <- state$values$ctgs_to_add 
-    # Change the "ui_has_been_made" column to FALSE so the app will create the UIs
-    saved_ctgs$ui_has_been_made <- FALSE
-    # Replace the current RV data frame and let the app do the rest!
-    rv$ctgs_to_add <- saved_ctgs
-    
-    
-    ## Load Rules  
-    
-    saved_rules <- state$values$rules_to_add 
-    # Change the "ui_has_been_made" column to FALSE so the app will create the UIs
-    saved_rules$ui_has_been_made <- FALSE
-    # Replace the current RV data frame and let the app do the rest!
-    rv$rules_to_add <- saved_rules
-    
-    
-    ## Load/Update Static Color Input UIs
-    
-    # Load static color UI's
-    rv$plot_colors_static <- state$values$plot_colors_static 
-    # Update all static colorInput UI's to match the loaded colors
-    for (i in 1:ncol(rv$plot_colors_static)) {
-      local({
-        # Get the correct id for the UI based on the column name
-        ui_id <- switch (colnames(rv$plot_colors_static)[i],
-                         'grid_lines_all'         = 'glAllColor',
-                         'grid_lines_x_all'       = 'glXAllColor',
-                         'grid_lines_x_major'     = 'glMajorXColor',
-                         'grid_lines_x_minor'     = 'glMinorXColor',
-                         'grid_lines_y_all'       = 'glYAllColor',
-                         'grid_lines_y_major'     = 'glMajorYColor',
-                         'grid_lines_y_minor'     = 'glMinorYColor',
-                         'plot_background_fill'   = 'plotBackgroundFill',
-                         'plot_background_color'  = 'plotBackgroundColor',
-                         'panel_background_fill'  = 'plotBackgroundColor',
-                         'panel_background_color' = 'panelBackgroundFill',
-                         'plotBackgroundColor'    = 'panelBackgroundColor'
-        )
-        # Update the colorInput UI
-        colourpicker::updateColourInput(session, inputId = ui_id, value = rv$plot_colors_static[1,i])
-      })
-    }
-    
-    
-    ## Load/Update Dynamic Color Input UIs
-    
-    # Load static color UI's
-    rv$ctg_aesthetics <- state$values$ctg_aesthetics
-    # Update all dynamic colorInput UI's to match the loaded colors (either Uniform or Individual Bar Colors)
-    if (input$aesOptions == "Uniform Bar Colors") {
-      # Change just the Uniform Bar Color Fill/Color colorInput UI's
-      colourpicker::updateColourInput(session, inputId = 'aes_uniform_fill', value = rv$ctg_aesthetics$fill[1])
-      colourpicker::updateColourInput(session, inputId = 'aes_uniform_color', value = rv$ctg_aesthetics$color[1])
-    } else {
-      # Change all Individual Bar Color Fill/Color colorInput UI's
-      for (i in 1:nrow(rv$ctg_aesthetics)) {
+    # Show a bar to show the progress of saving the state to the server.
+    withProgress(min = 0, max = 1, message = "Loading Saved State", detail = "Loading Category Inputs...", {
+      
+      ## Load Categories
+      
+      saved_ctgs <- state$values$ctgs_to_add 
+      # Change the "ui_has_been_made" column to FALSE so the app will create the UIs
+      saved_ctgs$ui_has_been_made <- FALSE
+      # Replace the current RV data frame and let the app do the rest!
+      rv$ctgs_to_add <- saved_ctgs
+      
+      
+      ## Load Rules  
+      
+      incProgress(amount = inc_amt, detail = "Loading Rule Inputs...")
+      
+      saved_rules <- state$values$rules_to_add 
+      # Change the "ui_has_been_made" column to FALSE so the app will create the UIs
+      saved_rules$ui_has_been_made <- FALSE
+      
+      # Replace the current RV data frame and let the app do the rest!
+      rv$rules_to_add <- saved_rules
+      
+      
+      ## Load/Update Static Color Input UIs
+      
+      incProgress(amount = inc_amt, detail = "Updating Static Plot Color Inputs...")
+      
+      # Load static color UI's
+      rv$plot_colors_static <- state$values$plot_colors_static 
+      # Update all static colorInput UI's to match the loaded colors
+      for (i in 1:ncol(rv$plot_colors_static)) {
         local({
-          # Initial Variables
-          fill_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_fill')
-          color_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_color')
-          new_fill <- rv$ctg_aesthetics$fill[i]
-          new_color <- rv$ctg_aesthetics$color[i]
-          # Update the colorInput UI's
-          colourpicker::updateColourInput(session, inputId = fill_ui_id, value = new_fill)
-          colourpicker::updateColourInput(session, inputId = color_ui_id, value = color_ui_id)
+          # Get the correct id for the UI based on the column name
+          ui_id <- switch (colnames(rv$plot_colors_static)[i],
+                           'grid_lines_all'         = 'glAllColor',
+                           'grid_lines_x_all'       = 'glXAllColor',
+                           'grid_lines_x_major'     = 'glMajorXColor',
+                           'grid_lines_x_minor'     = 'glMinorXColor',
+                           'grid_lines_y_all'       = 'glYAllColor',
+                           'grid_lines_y_major'     = 'glMajorYColor',
+                           'grid_lines_y_minor'     = 'glMinorYColor',
+                           'plot_background_fill'   = 'plotBackgroundFill',
+                           'plot_background_color'  = 'plotBackgroundColor',
+                           'panel_background_fill'  = 'plotBackgroundColor',
+                           'panel_background_color' = 'panelBackgroundFill',
+                           'plotBackgroundColor'    = 'panelBackgroundColor'
+          )
+          # Update the colorInput UI
+          colourpicker::updateColourInput(session, inputId = ui_id, value = rv$plot_colors_static[1,i])
         })
       }
-    }
-    
-    
-    ## Load the plot
-    rv$plot <- state$values$plot
-    
-    ## Load the table
-    rv$table <- state$value$table 
-    
-    
-    ## Show the Plot, Table, and Customizations
-    rv$show_results <- TRUE
-  })
+      
+      
+      ## Load/Update Dynamic Color Input UIs
+      
+      incProgress(amount = inc_amt, detail = "Loading Dynamic Plot Color Inputs...")
+      
+      # Load dynamic color UI's
+      rv$ctg_aesthetics <- state$values$ctg_aesthetics
+      # Update all dynamic colorInput UI's to match the loaded colors (either Uniform or Individual Bar Colors)
+      if (input$aesOptions == "Uniform Bar Colors") {
+        # Change just the Uniform Bar Color Fill/Color colorInput UI's
+        colourpicker::updateColourInput(session, inputId = 'aes_uniform_fill', value = rv$ctg_aesthetics$fill[1])
+        colourpicker::updateColourInput(session, inputId = 'aes_uniform_color', value = rv$ctg_aesthetics$color[1])
+      } else {
+        # Change all Individual Bar Color Fill/Color colorInput UI's
+        for (i in 1:nrow(rv$ctg_aesthetics)) {
+          local({
+            # Initial Variables
+            fill_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_fill')
+            color_ui_id <- paste0(rv$ctg_aesthetics$id[i], '_color')
+            new_fill <- rv$ctg_aesthetics$fill[i]
+            new_color <- rv$ctg_aesthetics$color[i]
+            # Update the colorInput UI's
+            colourpicker::updateColourInput(session, inputId = fill_ui_id, value = new_fill)
+            colourpicker::updateColourInput(session, inputId = color_ui_id, value = color_ui_id)
+          })
+        }
+      }
+      
+      
+      ## Load the plot
+      
+      incProgress(amount = inc_amt, detail = "Loading Plot...")
+      rv$plot <- state$values$plot
+      
+      ## Load the table
+      
+      incProgress(amount = inc_amt, detail = "Loading Table...")
+      rv$table <- state$value$table 
+      
+      
+      ## Show the Plot, Table, and Customizations
+      
+      incProgress(amount = inc_amt, detail = "Finishing...")
+      rv$show_results <- TRUE
+      
+    })
+})
   
   
   #### setBookmarkExclude() ####
@@ -243,20 +289,40 @@ server <- function(input, output, session) {
   ## Reads in file
   getData <- reactive({
     
+    # Get the file
     inFile <- input$responses
-    # Display nice error message if file hasn't been uploaded or is an unaccepted type
-    validate(
-      need(!is.null(input$responses), "No File Loaded"),
-      need(inFile$type %in% c("text/csv", "text/comma-separated-values,text/plain", ".xlsx", 
-                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), 
-           "Please upload an Excel or CSV file with 1 column containing survey responses"),
-      need(try(!is.null(readxl::read_excel(inFile$datapath, col_names = "Responses"))), 
-           "Please upload an Excel or CSV file with 1 column containing survey responses")
-    )
-    # Read in and return the file
-    data <- readxl::read_excel(inFile$datapath, col_names = "Responses")
-    data <- data.frame(data, stringsAsFactors = FALSE)
-    return(data)
+    
+    # Return error message if input is empty
+    if (length(inFile) < 1) {
+      rv$error_to_display <- "Please import a 1-Column Excel or CSV file."
+      return(NULL)
+    }
+    
+    # Retrieve the extension of the file
+    ext <- tools::file_ext(inFile)[1]
+    
+    # Proceed to read in file if its extension is allowed
+    allowed_exts <- c('xlsx','csv')
+    if (ext %in% allowed_exts) {
+      
+      # Read in the file based on its extension
+      data <- switch (ext,
+                      "csv" = readr::read_csv(inFile$datapath, col_names = "Responses"),
+                      "xlsx" = readxl::read_excel(inFile$datapath, col_names = "Responses")
+      )
+      # Make sure error goes away
+      rv$error_to_display <- NULL
+      
+      # Return the read-in data
+      return(data)
+      
+    } else {
+      # Return Invalid extension error message
+      rv$error_to_display <- paste0('File extension "', ext, '" is not supported. 
+                                    Please upload one of these files instead: ', 
+                                    str_c(allowed_exts, collapse = ", "))
+      return(NULL)
+    }
   })
   
   
@@ -273,8 +339,8 @@ server <- function(input, output, session) {
       ## Retrieve the Imported Data
       data <- getData()
       
-      ## Skip if data is NULL or no Categories were added
-      if (is.null(data) | !input$ctgAdd) {
+      ## Skip process if data contains an error
+      if (is.null(data)) {
         return(NULL)
       }
       
@@ -282,11 +348,14 @@ server <- function(input, output, session) {
       # all_categories <- rv$all_categories 
       all_rules <- rv$all_rules
       
-      ## Initial Variables
+      ## Category Varialbes
       N <- nrow(rv$all_categories) # Number of categories
       num_responses <- nrow(data) # Number of responses
-      num_rules <- nrow(all_rules) # Number of rules
+      # num_rules <- nrow(all_rules) # Number of rules
       default_ctg_name <- paste0(input$defaultName)
+      
+      ## Categorization Options
+      count_by <- input$count_by
       multiple_categories_per_response <- input$multCtgsPerResponse # If false, will assign one ctg per response
       
       ## Add a new Default Category column to the variables data
@@ -322,7 +391,8 @@ server <- function(input, output, session) {
           # Proceed if this category has any rules and exists
           if (ctg.num_rules > 0) {
             
-            # Create a new Category column to track whether each response is assigned to this category
+            # Create a new Category column to hold each response's categorization 
+            # (will be added to the main Table)
             new_column = data.frame(matrix(nrow = num_responses, ncol = 1),
                                     stringsAsFactors = FALSE) %>%
               `colnames<-`(ctg.name) # Name column after Category's current name
@@ -331,16 +401,17 @@ server <- function(input, output, session) {
             # Retrieve all rule data for this category
             ctg.all_rules <- all_rules %>% 
               filter(rule_ctg_id == ctg.id) %>% 
-              mutate(Num_Matches = as.integer(0)) # For tracking number of matches as loop through new_column
+              mutate(Num_Matches = as.integer(0)) # For tracking number of matches for each rule
             
             # Update the new column
-            # Will increase the value based on matches found in the adjacent response text
+            # Will increase the values based on the categorization options and
+            # matches found in the adjacent response text
             new_column[,1] <- sapply(1:nrow(new_column), function(new_col_row_idx) {
               
               # Will skip categorizing response only if: 
               # - Multiple Categories per Response is False AND
               # - Adjacent response has already been categorized
-              #   (Is categorized if there's a one in another column other than the default)
+              #   (Is already categorized if there's a number > 0 in another column other than the default)
               if (!multiple_categories_per_response && sum(data[new_col_row_idx,2:ncol(data)]) > 1) {
                 
                 # Return a zero
@@ -358,6 +429,7 @@ server <- function(input, output, session) {
                   # Initial Rule variables
                   # Each of these will be distinguished with a "." for readability
                   rule.sort_option <- ctg.all_rules$rule_sort_options[rule_idx]
+                  rule.apply_to <- ctg.all_rules$rule_apply_to[rule_idx]
                   rule.standardize <- ctg.all_rules$rule_standardize[rule_idx]
                   rule.keywords <- ctg.all_rules$rule_keywords[rule_idx] %>% 
                     stri_extract_all_words() %>% # Split the keywords into list of words
@@ -365,8 +437,7 @@ server <- function(input, output, session) {
                     `colnames<-`("Keyword") %>%  # Change the column name
                     mutate(Num_Matches = as.integer(0)) # For tracking number of matches for each Rule's keywords
                   
-                  # Loop through each Rule Keyword
-                  # Will update the Number of matches for each keyword
+                  # Compare each Keyword to the response and return the number of matches
                   rule.keywords$Num_Matches <- sapply(1:nrow(rule.keywords), function(keyword_idx) {
                     
                     # Initial Variables
@@ -375,62 +446,72 @@ server <- function(input, output, session) {
                     # Proceed if the keyword is not blank
                     if (!is.na(current_keyword) & current_keyword != "") {
                       
-                      # Proceed based on Multiple CTG's per Response
-                      #   - TRUE:  Count ALL times the keyword appears in the response text
-                      #   - FALSE: Count the FIRST time the keyword matches the response text
-                      if (multiple_categories_per_response) {
-                        
-                        # Split the response text into individual words
-                        current_response_words <- current_response_text %>%
+                      # By default, compare this keyword to the entire response by treating
+                      # the entire response as one word in a dataframe.
+                      # (Apply To = "Response")
+                      compare_text <- current_response_text %>% 
+                        as.data.frame() %>% 
+                        `colnames<-`("Response_Word")
+                      
+                      # If Apply To = "Word", then compare this keyword to each Word in the response
+                      if (rule.apply_to == "Word") {
+                        compare_text <- current_response_text %>%
                           stri_extract_all_words() %>%   # Split the response into list of words
                           as.data.frame() %>%            # Convert to data frame
                           `colnames<-`("Response_Word")  # Change column name
-                        
-                        # Use check_match() defined in global.R to count the number of times 
-                        # the keyword matches across all response words, following the sort option
-                        num_matches <- sapply(1:nrow(current_response_words), function(word) {
-                          check_match(keyword = current_keyword, 
-                                      match_value = word, 
-                                      standardize = rule.standardize, 
-                                      sort_option = rule.sort_option)
-                        })
-                        
-                        return(sum(num_matches))
-                        
-                      } else {
-                        
-                        # Use check_match() defined in global.R to check if the keyword matches the 
-                        # full response text, following the sort option
-                        match_found <- check_match(keyword = current_keyword, 
-                                                   match_value = current_response_text, 
-                                                   standardize = rule.standardize, 
-                                                   sort_option = rule.sort_option)
-                        
-                        # Return 1 if a match was found, 0 if not
-                        return(match_found)
                       }
+                      
+                      # Skip this response and return a 0 if there are no rows in the df
+                      if (nrow(compare_text) < 1) { return(0) }
+                      
+                      # Use the check_match() function defined in global.R to create a new column that 
+                      # counts the number of times the keyword "matches" each word in the compare text. 
+                      # The string comparison used to find a "match" is determined by the selected Sort Option.
+                      compare_text$Num_Matches <- sapply(1:nrow(compare_text), function(word_idx) {
+                        
+                        # Extract the current word from the compare text
+                        # (Will be the entire response if Apply To = "Response")
+                        word <- compare_text$Response_Word[word_idx]
+                        
+                        # Call the function to return a 1 if a match was found and 0 if not
+                        found_match <- check_match(keyword = current_keyword,
+                                                   match_value = word, 
+                                                   standardize = rule.standardize, 
+                                                   sort_option = rule.sort_option) 
+                      
+                        # print(paste0("Category [",N,"] Rule [",rule_idx,"] Keyword [",current_keyword,"] Compare Text [",word,"] Found Match [",found_match,"]"))
+                      
+                        return(found_match)
+                      })
+                      
+                      # Update this keyword's column in the rule's Num_Matches
+                      return(sum(compare_text$Num_Matches, na.rm = TRUE))
                       
                     } else { return(as.integer(0)) } # Return no matches found if keyword is NA
                   })
                   
-                  # Return the number of Rule matches (total matches found from each keyword)
-                  return( as.integer(sum(rule.keywords$Num_Matches)) )
+                  
+                  # Update this rule's Num_Matches column based on the selected "Count By" option:
+                  #   - First Match: Count the FIRST time this response matches this rule (as 1 or 0)
+                  #   - All Matches: Count ALL times this response matches this rule (as sum)
+                  return( ifelse(count_by == "All Matches",
+                                 sum(rule.keywords$Num_Matches),
+                                 ifelse(sum(rule.keywords$Num_Matches) > 0, 1, 0)) )
                 })
                 
-                # Change current new_column row value to sum of all matches if multiple responses is checked.
-                # Otherwise, change to 1 if more than one match was found and 0 if not.
-                return( as.integer(
-                  ifelse(multiple_categories_per_response,
+                # Change current new_column row value based on the selected Count By option
+                #   - First Match: Count the FIRST time this response matches this category (as 1 or 0)
+                #   - All Matches: Count ALL times this response matches this category (as sum)
+                return( ifelse(count_by == "All Matches",
                          sum(ctg.all_rules$Num_Matches),
                          ifelse(sum(ctg.all_rules$Num_Matches) > 0, 1, 0)) )
-                )
               }
             })
             
             # Add the new column to the responses data
             data <- bind_cols(data, new_column)
             
-          } else { } # There are no rules for this category, so nothing happens
+          } else { } # There are no rules for this category, so do nothing
           
         }
         
@@ -457,10 +538,16 @@ server <- function(input, output, session) {
   plotGG <- reactive({
     
     ## Get the responses data sorted into categories
-    data <- sortData_GG()  
+    data <- sortData_GG() 
     
-    ## Skip if data is null or no categories have been made
-    if (is.null(data) || nrow(rv$all_categories) == 0) {
+    ## Skip plotting if data contains an error
+    if (is.null(data)) {
+      return(NULL)
+    } 
+    
+    ## Display new error if no categories have been created
+    if (nrow(rv$all_categories) == 0) {
+      rv$error_to_display <- "Please add at least one category before updating."
       return(NULL)
     }
     
@@ -550,6 +637,8 @@ server <- function(input, output, session) {
         }
         
         # Create a new row to be returned
+        # new_aes <- data.frame(matrix(nrow = 1, ncol = 5)) %>% 
+        #   `colnames<-`(c("category","fill","color","lineWidth","lineType"))
         new_aes <- data.frame(
           id = paste0(ctgInputID, "_", id_num),
           category = ctg_name,
@@ -788,7 +877,10 @@ server <- function(input, output, session) {
     }
     
     ## Save plot to Reactive Values
-    rv$plot <- plot
+    # rv$plot <- plot
+    
+    ## Make sure errors are not displayed
+    rv$error_to_display <- NULL
     
     ## Return the finished plot to be plotted
     return(plot)
@@ -801,10 +893,16 @@ server <- function(input, output, session) {
     ## Get the responses data sorted into categories
     data <- sortData_GG() 
     
-    ## Skip if data is null or no categories have been made
-    if (is.null(data) | nrow(rv$all_categories) == 0) {
+    ## Skip process if data contains an error message
+    if (is.null(data)) {
       return(NULL)
-    }  
+    } 
+    
+    ## Return new error code if no categories have been created
+    if (nrow(rv$all_categories) == 0) {
+      rv$error_to_display <- "Please add at least one category before updating."
+      return(NULL)
+    }
     
     ## Re-structure the data to be plotted as a table
     ## (Add a surrogate Index as the first column for numbering the responses)
@@ -812,8 +910,11 @@ server <- function(input, output, session) {
                                        stringsAsFactors = FALSE),
                             data %>% as.data.frame())
     
-    ## Save table to reactive values
+    ## Save table to reactive values to be plotted
     rv$table <- table_data
+    
+    ## Make sure no errors are displayed
+    rv$error_to_display <- NULL
     
     ## Plot the table of the data
     return(table_data)
@@ -822,157 +923,39 @@ server <- function(input, output, session) {
   
   
   
-  #### find_topics() ####
-  ## Uses LDA models to automatically find topics in the responses 
-  find_topics <- reactive({
+  #### Observe Event -- updatePushed_plotGG ####
+  ## Calls plotGG when "Update" button is pushed and updates the RV to trigger renderPlot()
+  # updatePushed_plotGG <- eventReactive(input$update, {
+  observeEvent(input$update, {
     
-    # Start the progress bar
-    # Reference: https://shiny.rstudio.com/articles/progress.html
-    withProgress(message = "Finding Topics", value = 0, {
-      
-      ### Initialize Progress Bar
-      num_steps <- 7
-      incr_val <- 1/num_steps # How far to increment the progress bar at each step
-      incProgress(incr_val, detail = "Reading in Data") # Increments the progress bar
-      
-      
-      ### Read in the Data
-      
-      # df <- read_excel("E:/mneff/Desktop/College Stuff/Spring 2019/SRC/R Reports/HCQuestions.xlsx")
-      df <- getData()
-      
-      # Increment Progress Bar
-      incProgress(amount = incr_val, detail = "Pre-processing the data")
-      
-      
-      ### Pre-Process the Data
-      ### Reference: https://stackoverflow.com/questions/55832844/remove-words-from-a-dtm
-      
-      # Retrieve the words not to be included in the models
-      words_to_remove <- input$tf_words_not_include %>% 
-        str_split(pattern = ",") %>% 
-        unlist() %>% 
-        str_trim(side = "both")
-      
-      # Convert column to Corpus (collection of "documents")
-      corpus <- corpus(df, text_field = "Responses")
-      
-      # Create a Document Term (Feature) Matrix from the corpus
-      #   (Each response becomes its own document split into words.) 
-      dtm <- dfm(corpus, stem = TRUE, 
-                 remove = stopwords("english"),
-                 remove_punct = TRUE) %>% 
-        dfm_trim(min_termfreq = 3) %>% # Remove rare terms
-        dfm_remove(words_to_remove) %>% # Remove words specified by user
-        convert(to = "tm") # Convert back to 'tm' library object for fitting
-      
-      # Remove very frequent and in-frequent terms
-      #   (Will calculate the mean term frequency-inverse document frequency (tg-idf)
-      #    of each term across documents and keep terms with a tf-idf of at least 0.1,
-      #    which is close to the median.
-      #    Then the documents will be filtered by the tf-idf to ensure steady frequency)
-      # Reference: p.12 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf    
-      term_tfidf <-
-        tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) *
-        log2(nDocs(dtm)/col_sums(dtm > 0))
-      dtm <- dtm[,term_tfidf >= 0.1]
-      dtm <- dtm[row_sums(dtm) > 0,]
-      
-      # Increment Progress Bar
-      incProgress(amount = incr_val, detail = "Fitting LDA Model")
-      
-      
-      ### Fit the models
-      ### Reference: p.13 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
-      
-      # Initial parameters
-      k <- input$tf_num_topics
-      SEED <- as.integer(Sys.time())
-      
-      # Fit several models for comparison
-      #   Both models use a VEM procedure for calculating the Maximum Likelihood
-      #   (This is a Variable version of the EM algorithm. It iterates between
-      #    an (E)xpectation step and a (M)aximization step to calculate parameters
-      #    that the EM algorithm cannot.) 
-      #   See section 2.2 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf 
-      models <- list()
-      
-      # Latent Dirichlet Allocation (LDA) Model (see p.1)
-      #   Topics are assumed to be uncorrelated
-      #   Can use the VEM or Gibbs algorithm
-      models[["LDA"]] <- LDA(dtm, k = k, method = "VEM",
-                             control = list(seed = SEED))
-      # Increment Progress Bar
-      incProgress(amount = incr_val, detail = "Fitting CTM Model")
-      
-      # Correlated Topic Model (CTM) (see p.2)
-      #   Topics are assumed to be correlated
-      #   Only uses the VEM algorithm
-      #   Set a larger tolerance for the relative change in the likelihood
-      models[["CTM"]] <- CTM(dtm, k = k,
-                             control = list(seed = SEED,
-                                            var = list(tol = 10^-4), 
-                                            em  = list(tol = 10^-3)))
-      # Increment Progress Bar
-      incProgress(amount = incr_val, detail = "Selecting 'Best' Model")
-      
-      
-      ### Select the "best" model
-      ### Reference: p.14 of https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
-      
-      # Calculate the mean entropy for each model.
-      #   This measures how much the model's topics are distributed across the documents.
-      #   The lower the entropy, the more precise and useful the predicted topics are.
-      entropies <- sapply(models, function(x)
-        mean(apply(posterior(x)$topics, 1, function(z) - sum(z * log(z)))))
-      
-      # Save the "best" model (the one with the lowest mean entropy)
-      # Reference: https://stackoverflow.com/questions/21422188/how-to-get-name-from-a-value-in-an-r-vector-with-names
-      best_model <- models[[names(entropies)[entropies == min(entropies)]]]
-      
-      print(best_model)
-      
-      # Increment Progress Bar
-      incProgress(amount = incr_val, detail = "Retrieving Final Results")
-      
-      
-      ### Get Final Results
-      
-      # Retrieve the best model's top terms for each topic
-      top_terms <- as.data.frame( terms(best_model, 25) ) 
-      
-      # Retrieve and clean the best model's most likely topic for each response
-      response_topics <- as.data.frame( topics(best_model) ) %>% 
-        rownames_to_column("Response") %>% 
-        rename(Topic = 'topics(best_model)')
-      response_topics$Response <- as.integer(str_remove(response_topics$Response, "text"))
-      
-      # Add original response text to the response topics
-      response_topics$Text <- unlist( sapply(response_topics$Response, function(r) df[r,1]) )
-      
-      # Increment Progress Bar
-      incProgress(amount = incr_val, message = "Done", detail = "")
-      
-      # Return the results in a vector
-      return( c(top_terms, response_topics) )    })
+    # Call the plotting function
+    plot <- plotGG()
+    
+    # If there's no errors, save the plot to RV
+    if (!is.null(plot)) {
+      rv$plot <- plot
+    } else {
+      # There is an error. Make sure the RV is set to NULL
+      rv$plot <- NULL
+    }
   })
   
   
-  
-  
-  #### updatePushed_plotGG() ####
-  ## Calls and returns return value of plotGG when "Update" button is pushed
-  updatePushed_plotGG <- eventReactive(input$update, {
-    # Saves graph of the data to reactive values
-    return(plotGG())
-  })
-  
-  
-  #### updatePushed_plotTable() ####
-  ## Calls and returns return value of plotTable when "Update" button is pushed
-  updatePushed_plotTable <- eventReactive(input$update, {
-    # Plots the table of the data
-    return(plotTable())
+  #### Observe Event -- updatePushed_plotTable ####
+  ## Calls plotTable when "Update" button is pushed and updates the RV to trigger renderTable()
+  # updatePushed_plotTable <- eventReactive(input$update, {
+  observeEvent(input$update, {
+    
+    # Call the plotting function
+    table <- plotTable()
+    
+    # If there's no errors, save the table to RV
+    if (!is.null(table)) {
+      rv$table <- table
+    } else {
+      # There is an error. Make sure the RV is set to NULL
+      rv$table <- NULL
+    }
   })
   
   
@@ -993,7 +976,7 @@ server <- function(input, output, session) {
       ui_has_been_made = FALSE,
       ctg_num = id_add,
       new_ctg_name = ctg_name,
-      new_ctg_id = ctg_id,
+      new_ctg_id = ctg_id ,
       stringsAsFactors = FALSE
     )
     rv$ctgs_to_add <- bind_rows(rv$ctgs_to_add, new_ctg_to_add)
@@ -1119,7 +1102,7 @@ server <- function(input, output, session) {
                          title = "+ Rule Info",
                          content = "
                  When multiple Rules are created for a Category, a response must 
-                 meet all of the Rules' criteria to be assigned to that Category.
+                 meet the conditions of every Rule to be assigned to that Category.
                  ")
             } else {
               
@@ -1157,19 +1140,14 @@ server <- function(input, output, session) {
                          ## Initial Variables
                          rule_ctg_id <- ctg_id
                          id_add_rule <- 1 
-                         rule_id <- paste0("rule_", id_add_rule, rule_ctg_id)
-                         # If this is not the first rule, update the above rule variables to be  
+                         # If this is not the first rule, set the new rule number to  
                          # one above the current max number of rules ever made for this category
-                         if (nrow(rv$rules_to_add) > 0) {
-                           # Filter to the rules that have been made for this category
-                           all_rules_made_for_ctg <- rv$rules_to_add %>% 
-                             filter(new_rule_ctg_id == rule_ctg_id & ui_has_been_made)
-                           if (nrow(all_rules_made_for_ctg) > 0) {
-                             # Set to one above max rule number
-                             id_add_rule <- max(all_rules_made_for_ctg$rule_num) + 1 
-                           }
-                           rule_id <- paste0("rule_", id_add_rule, rule_ctg_id)
+                         all_rules_made_for_ctg <- rv$rules_to_add %>% 
+                           filter(new_rule_ctg_id == rule_ctg_id & ui_has_been_made)
+                         if (nrow(all_rules_made_for_ctg) > 0) {
+                           id_add_rule <- max(all_rules_made_for_ctg$rule_num) + 1 
                          }
+                         rule_id <- paste0("rule_", id_add_rule, rule_ctg_id)
                          
                          ## Add new row to the RV data frame
                          new_rule_to_add = data.frame(
@@ -1218,16 +1196,18 @@ server <- function(input, output, session) {
           remove_rule_button_id <- paste0("remove_rule_button_", id_add_rule, ctg_id)
           rule_keywords_id <- paste0(rule_id, "_keywords")
           rule_sort_options_id <- paste0(rule_id, "_sort_options")
+          rule_apply_to_id <- paste0(rule_id, "_apply_to")
           rule_standardize_id <- paste0(rule_id, "_standardize")
           
           ## Define Initial Variables
           rule_init_keywords <- new_rule_keywords
-          # if (nrow(rv$topics_to_add) > 0) {
-          #   # Insert Topic's Title if new Category is a topic to be converted
-          #   rule_init_keywords <- rv$topics_to_add$terms[rv$topics_to_add$ctg_id == ctg_id]
-          # }
-          rule_choices_sort_options <- c("Exactly","Contains","Begins With","Ends With")
+          rule_choices_sort_options <- c("Exact", "Anything But",
+                                         "Contains", "Does Not Contain",
+                                         "Begins With", "Does Not Begin With",
+                                         "Ends With", "Does Not End With")
           rule_init_sort_options <- "Contains"
+          rule_choices_apply_to <- c("Word", "Response")
+          rule_init_apply_to <- "Response"
           rule_init_standardize <- TRUE
           
           
@@ -1243,12 +1223,24 @@ server <- function(input, output, session) {
                      textInput(rule_keywords_id,
                                value = rule_init_keywords,
                                label = paste0("Keywords for Rule ", id_add_rule)),
-                     # Sorting Options list
-                     selectInput(rule_sort_options_id,
-                                 label = "Sorting Options",
-                                 choices = rule_choices_sort_options,
-                                 selected = rule_init_sort_options,
-                                 width = 120 ),
+                     fluidRow(
+                       column(width = 6,
+                              # Sorting Options list
+                              selectInput(rule_sort_options_id,
+                                          label = "Sorting Options",
+                                          choices = rule_choices_sort_options,
+                                          selected = rule_init_sort_options,
+                                          width = 120 )
+                              ),
+                       column(width = 6,
+                              # Apply To Radio Buttons
+                              radioButtons(rule_apply_to_id,
+                                           label = "Apply To",
+                                           choices = rule_choices_apply_to,
+                                           selected = rule_init_apply_to,
+                                           inline = FALSE)
+                              )
+                     ),
                      # Standardize check box that will, when checked, set all keywords and responses to lowercase
                      checkboxInput(rule_standardize_id, 
                                    label = "Standardize All to Lowercase", 
@@ -1285,7 +1277,9 @@ server <- function(input, output, session) {
                                      rule_keywords_id = rule_keywords_id,
                                      rule_keywords = rule_init_keywords,
                                      rule_sort_options_id = rule_sort_options_id,
-                                     rule_sort_options = rule_init_sort_options,
+                                     rule_sort_options = rule_init_sort_options,                
+                                     rule_apply_to_id = rule_apply_to_id,  
+                                     rule_apply_to = rule_init_apply_to, 
                                      rule_standardize_id = rule_standardize_id,
                                      rule_standardize = rule_init_standardize,
                                      stringsAsFactors = FALSE
@@ -1305,6 +1299,11 @@ server <- function(input, output, session) {
             rv$all_rules$rule_sort_options[rv$all_rules$rule_id == rule_id] <- input[[rule_sort_options_id]]
           })
           
+          ## Update Apply To in rv data frame when changed
+          observeEvent(input[[rule_apply_to_id]], {
+            rv$all_rules$rule_apply_to[rv$all_rules$rule_id == rule_id] <- input[[rule_apply_to_id]]
+          })
+          
           ## Update Standardize in rv data frame when changed
           observeEvent(input[[rule_standardize_id]], {
             rv$all_rules$rule_standardize[rv$all_rules$rule_id == rule_id] <- input[[rule_standardize_id]]
@@ -1319,24 +1318,34 @@ server <- function(input, output, session) {
               addPopover(session, id = rule_keywords_id, trigger = "hover", 
                          title = "Keywords Info",
                          content = "
-                 All Keywords will be compared to each word in every response’s 
-                 text. If they “match”, that response will be assigned to this 
-                 Rule’s Category. All words can be separated by any delimiter, 
-                 but whitespaces will be removed. (Ex: . , | ; : )                 
+                 Each Keywords listed here will be compared to each response's text, and if 
+                 they “match”, then that response will be assigned to this Rule’s Category. 
+                 The Keywords will be separated by any delimiter, including whitespaces.
+                 (Ex: . , | ; : )                 
                  ")
               
               ## Add Rule Sorting Options Tooltip
               addPopover(session, id = rule_sort_options_id, trigger = "hover", 
                          title = "Sorting Options Info",
+                         content = '
+                 Defines when a Keyword will "match" the text it is compared to.
+                 (Ex: if "Contains" is selected, then if the text contains any of 
+                 the Keywords listed above, then they will "match".)
+                 ')
+              
+              ## Add Rule Apply To Tooltip
+              addPopover(session, id = rule_apply_to_id, trigger = "hover", 
+                         title = "Apply To Info",
                          content = "
-                 Determines how the Keywords will “match” each word in a response’s text.
+                 Determines whether each Keyword will compared to the entire response text 
+                 or each word in the response text.
                  ")
               
               ## Add Rule Standardize Tooltip
               addPopover(session, id = rule_standardize_id, trigger = "hover", 
                          title = "Standardize Info",
                          content = "
-                 If checked, makes all Keywords and response’s words lowercase before comparing.
+                 If checked, converts the Keywords and the text to lower-case before comparing.
                  ")
               
             } else {
@@ -1344,6 +1353,7 @@ server <- function(input, output, session) {
               # Remove All Rule Tooltips
               removePopover(session, id = rule_keywords_id)
               removePopover(session, id = rule_sort_options_id)
+              removePopover(session, id = rule_apply_to_id)
               removePopover(session, id = rule_standardize_id)
             }
           })
@@ -1372,253 +1382,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  #### Observe Event -- Find Topics (Go!) ####
-  ## Calls find_topics() when the Topic Finder "Go!" button is pushed.
-  ## Returns TRUE if topics were found
-  observeEvent(input$tf_go, {
-    
-    # Call function to find topics
-    results <- find_topics()
-    n <- input$tf_num_topics # The number of topics to find
-    
-    # Make sure topics were found and proper results are saved
-    if (is.null(results)) {
-      # Save NULL to reactive values and return FALSE
-      rv[["topics"]] <- NULL
-      rv[["response_topics"]] <- NULL
-      rv[["num_topics"]] <- 0
-      
-    } else {
-      #### * Remove All Existing Topic UIs #### 
-      ## Need to do this before updating the number of topics found
-      lapply(1:rv$num_topics, function (t)
-        removeUI(paste0("#topic_tag_",t))
-      )
-      
-      # Save results to reactive values and return TRUE
-      rv[["topics"]] <- results[1:n] # The first n list items are the topics
-      rv[["response_topics"]] <- results[n+1:length(results)] # The rest are response topics
-      rv[["num_topics"]] <- n
-      
-      # Convert response topics from list to data frame for Results Tabs
-      rv$response_topics <- data.frame(
-        Response = rv$response_topics$Response,
-        Topic = rv$response_topics$Topic,
-        Text = rv$response_topics$Text,
-        stringsAsFactors = FALSE
-      ) 
-      
-      #### * Insert New Topic UIs ####
-      lapply(1:n, function(t) {
-        
-        # Initial Variables
-        topic <- rv$topics[t]
-        topic_id <- paste0("topic_", t)
-        topic_tag_id <- paste0("topic_tag_", t)
-        topic_name <- names(topic)
-        topic_terms <- str_c(unlist(topic[1])[1:10], collapse = " | ")
-        topic_checkbox_id <- paste0("topic_checkbox_", t)
-        topic_title_id <- paste0("topic_title_", t)
-        topic_terms_id <- paste0("topic_terms_", t)
-        topic_num_terms_id <- paste0("topic_num_terms_", t)
-        
-        # Insert the New UIs ana Placeholders
-        insertUI("#tf_topics", "beforeBegin",
-                 tags$div(
-                   id = topic_tag_id,
-                   wellPanel(
-                     fluidRow(
-                       column(width = 1,
-                              # Convert to Category Checkbox
-                              checkboxInput(topic_checkbox_id, label = "")
-                       ),
-                       column(width = 3,
-                              # Topic Title Textbox
-                              textInput(topic_title_id, label = "", 
-                                        value = topic_name)
-                       ),
-                       column(width = 6,
-                              # Terms Text Output
-                              # Need this here so user can change the number of terms to show
-                              # without having to run the model again
-                              textOutput(topic_terms_id)
-                       ),
-                       column(width = 2,
-                              # Number of Terms to Show
-                              numericInput(topic_num_terms_id, "Terms",
-                                           value = 10, min = 1, max = 25)
-                       )
-                     )
-                   )
-                 )
-        )
-        
-        # Render the Topic's Terms (default is first 10)
-        output[[topic_terms_id]] <- renderText({
-          rv[[topic_terms_id]] <- topic_terms # Save as a reactive value
-          return(topic_terms)
-        })
-        
-        #### * * Observe Event -- Update Number of Terms Showing ####
-        ## Updates the number of terms to show whenever the topic's input changes
-        observeEvent(input[[topic_num_terms_id]], {
-          
-          num_terms <- input[[topic_num_terms_id]]
-          
-          # Do nothing if input is not a number
-          if (!is.numeric(num_terms)) {  } else {
-            
-            # Proceed if input is greater than zero
-            if (num_terms > 0) {
-              
-              # Retrieve and format the new number of terms
-              new_topic_terms <- str_c(unlist(topic[1])[1:input[[topic_num_terms_id]]], 
-                                       collapse = " | ")
-              
-              # Render the Topic's New Terms
-              output[[topic_terms_id]] <- renderText({
-                rv[[topic_terms_id]] <- new_topic_terms # Save as a reactive value
-                return(new_topic_terms)
-              })          
-            }
-          }
-        })
-      })
-    }
-  })
-  
-  
-  #### Observe Event -- Convert Topics ####
-  ## Adds a new Category "manually" for each selected topic
-  observeEvent(input$tf_convert_topics, {
-    
-    # Initial variables
-    num_topics_checked <- 0         # To send error if no topics are checked
-    n <- rv$num_topics              # Number of topics
-    prg_incr <- 1 / n               # How much to increment the Progress bar
-    new_ctgs <- data.frame(         # New Category rows to be added to rv$ctgs_to_add to trigger category creation
-      ui_has_been_made = logical(),
-      ctg_num = integer(),
-      new_ctg_id = character(),
-      new_ctg_name = character(),
-      stringsAsFactors = FALSE
-    )
-    new_rules <- data.frame(         # New Rule rows to be added to rv$rules_to_add to trigger rule creation
-      ui_has_been_made = logical(),
-      rule_num = integer(),
-      new_rule_ctg_id = character(),
-      new_rule_id = character(),
-      new_rule_keywords = character(),
-      stringsAsFactors = FALSE
-    )
-    
-    # Start the Progress Bar
-    withProgress(message = "Converting Topics to Categories", value = 0, {
-      
-      # Loop through each topic
-      for (t in 1:n) {
-        
-        # Proceed only if the topic is currently selected (checked)
-        if (input[[paste0("topic_checkbox_", t)]] == TRUE) {
-          
-          # Create New Category 
-          # (by pushing existing action buttons and updating the created UI)
-          if (rv$file_is_valid == TRUE) {
-            
-            # Initial Topic Variables
-            topic_title_id <- paste0("topic_title_", t)
-            topic_terms_id <- paste0("topic_terms_", t)
-            title <- input[[topic_title_id]]
-            terms <- rv[[topic_terms_id]]
-            
-            # Variables for making new Category for the topic
-            new_ctg_add_id <- num_topics_checked + max(rv$ctgs_to_add$ctg_num) + 1
-            new_ctg_id <- paste0("ctg_", new_ctg_add_id)
-            
-            # Variables for making new Rule for the topic
-            new_rule_num <- 1
-            new_rule_id <- paste0("rule_", new_rule_num, new_ctg_id)
-            
-            # Add a new Category row to the loop's data frame
-            new_ctg_to_be_added <- data.frame(
-              ui_has_been_made = FALSE,
-              ctg_num = new_ctg_add_id,
-              new_ctg_id = new_ctg_id,
-              new_ctg_name = title,
-              stringsAsFactors = FALSE
-            )
-            new_ctgs <- bind_rows(new_ctgs, new_ctg_to_be_added)
-            
-            # Add a new Rule row to the loop's data frame
-            new_rule_to_be_added <- data.frame(
-              ui_has_been_made = FALSE,
-              rule_num = new_rule_num,
-              new_rule_ctg_id = new_ctg_id,
-              new_rule_id = new_rule_id,
-              new_rule_keywords = terms,
-              stringsAsFactors = FALSE
-            )
-            new_rules <- bind_rows(new_rules, new_rule_to_be_added)
-            
-          } else { } # No file imported
-          
-          # Increment counter
-          num_topics_checked <- num_topics_checked + 1
-          
-        } else { } # Current check box is not selected
-        
-        # Increment Progress Bar
-        incProgress(amount = prg_incr)
-        
-      }
-      
-      # Show pop-up message to select topics before pushing button
-      if (num_topics_checked == 0) { 
-        shinyalert(title = "Oops!",
-                   text = "Please select (check) at least one topic to convert.",
-                   type = "error") 
-      }
-      
-      # Add new_ctgs to the rv$ctgs_to_add to trigger their creation
-      # (if there are any to add)
-      if (nrow(new_ctgs) > 0) {
-        rv$ctgs_to_add <- bind_rows(rv$ctgs_to_add, new_ctgs)
-      }
-      
-      # Add new_rules to the rv$ctgs_to_add to trigger their creation
-      # (if there are any to add)
-      if (nrow(new_rules) > 0) {
-        rv$rules_to_add <- bind_rows(rv$rules_to_add, new_rules)
-      }
-    })
-  })
-  
-  
-  #### Observe Event -- New Topic to Convert Added ####
-  ## Will finish converting a newly added topic to a category
-  # observeEvent(rv$topics_to_add, ignoreInit = TRUE, {
-  #   
-  #   # Loop through each topic to add and finish conversion, if applicable
-  #   for (t in 1:nrow(rv$topics_to_add)) {
-  # 
-  #     # Check if "+ Rule" button has been created and hasn't been pushed yet
-  #     if (str_length(rv$topics_to_add$rule_id[t]) > 0 & 
-  #         rv$topics_to_add$buttons_pushed[t] == FALSE) {
-  #       
-  #       
-  #       # Push the "+ Rule" button
-  #       click(rv$topics_to_add$rule_id[t], asis = TRUE)
-  #       
-  #       # Make sure the "+ Rule" button isn't pushed twice
-  #       rv$topics_to_add$buttons_pushed[t] <- TRUE
-  #       
-  # 
-  #     } else { } # Nothing Happens
-  #   }
-  # })
-  
-  
   #### Observe Event -- Show Tooltips ####
   ## Add tooltips only if checkbox is checked
   observeEvent(input$show_tooltips, {
@@ -1637,10 +1400,36 @@ server <- function(input, output, session) {
       addPopover(session, id = "import_title", trigger = "hover",
                  title = "Importing Info",
                  content = "
-                 Allows you upload a CSV or Excel file. You can either: 
+                 Allows you to upload a 1-column CSV or Excel file containing your open-ended responses. 
+                 You can either: 
                  1) Browse for the file from your local computer by pressing the “Browse” button or 
                  2) Drag and drop the file next to the button.
                  ")
+      
+      # Counting Options Title Popover
+      addPopover(session, id = "categorization_options_title", trigger = "hover",
+                 title = "Categorization Options Info",
+                 content = '
+                 These options tell the app what and how to count when assigning responses to
+                 categories. 
+                 Press the links below to visualize and play around with what each option does.
+                 ')
+      
+      # Count By Radio Buttons Popover
+      addPopover(session, id = "count_by", trigger = "hover",
+                 title = "Count By Info",
+                 content = '
+                 First Match: Only the first time a response "matches" a category will be counted (with a 1).
+                 All Matches: All times a response "matches" a category will be counted (with a sum).
+                 ')
+      
+      # Multiple Categories Per Response Checkbox Popover
+      addPopover(session, id = "multCtgsPerResponse", trigger = "hover",
+                 title = "Multiple Categories Per Response Info",
+                 content = '
+                 If selected, each response can be assigned to multiple categories. 
+                 If not selected, each response will be assigned to the first category it "matches".
+                 ')
       
       # Add Category Popover
       addPopover(session, id = "ctgAdd", trigger = "hover",
@@ -1651,60 +1440,6 @@ server <- function(input, output, session) {
                  fall under it.                  
                  ")
       
-      # Find Categories For Me Popover
-      addPopover(session, id = "find_categories", trigger = "hover",
-                 title = "Find Categories for Me Info",
-                 content = "
-                 A great place to start if you don’t know what categories to add.
-                 Opens the Topic Finder window.
-                 ")
-      
-      # Number of Topics to Find Popover
-      addPopover(session, id = "tf_num_topics", trigger = "focus", 
-                 title = "Number of Topics Info",
-                 content = "
-                 For the machine learning models to work, you must first specify
-                 how many abstract topics there might be across all responses. The minimum 
-                 is 2, and the maximum is 10.
-                 ")
-      
-      # Words Not to Include Popover
-      addPopover(session, id = "tf_words_not_include", trigger = "focus", 
-                 title = "Words Not to Include Info",
-                 content = "
-                 These words will be taken out of all responses before running the 
-                 machine learning models. Each word/phrase MUST be separated by a comma!
-                 ")
-      
-      # Convert Topics Button Popover
-      addPopover(session, id = "tf_convert_topics", trigger = "hover",
-                 title = "Convert Topics Info",
-                 content = "
-                 When pushed, each selected (checked) topic will be added as a new 
-                 category. A new category and rule will be created “manually”, and 
-                 the topic’s title and terms will be copied over.                 
-                 ")
-      
-      # Topics TabPanel Popover
-      addPopover(session, id = "topics_tab", trigger = "hover", placement = "top",
-                 title = "Topics Tab Info",
-                 content = "
-                 This tab shows each predicted topic with its most relevant terms. 
-                 The first listed term is the most relevant to the topic. 
-                 When selected, a topic can be converted to a category 
-                 (hover over “Convert Topics” button for details). 
-                 ")
-      
-      # Topics TabPanel Popover
-      addPopover(session, id = "details_tab", trigger = "hover", placement = "top",
-                 title = "Details Tab Info",
-                 content = "
-                 This tab shows the details of each predicted topic with a graph and
-                 a table. “View Graph” shows how many responses have each topic as 
-                 its best match, and the “View Table” shows the full text of each 
-                 response with its assigned (a.k.a. best matched) topic.
-                 ")
-      
       # Default Category Popover
       addPopover(session, id = "defaultName", trigger = "hover",
                  title = "Default Category Info",
@@ -1713,30 +1448,16 @@ server <- function(input, output, session) {
                  unless assigned to any other Category.
                  ")
       
-      # Multiple Categories Per Response Popover
-      addPopover(session, id = "multCtgsPerResponse", trigger = "hover",
-                 title = "Multiple Categories Per Response Info",
-                 content = '
-                 If selected, all times any category is mentioned in each response 
-                 will be counted. If not selected, each response will be assigned 
-                 to only the first category it "matches".
-                 ')
-      
     } else {
       
       #### * Remove Tooltips ####
       
-      removePopover(session, id = "find_categories")
-      removePopover(session, id = "ctgAdd")
-      removePopover(session, id = "tf_num_topics")
-      removePopover(session, id = "tf_words_not_include")
       removePopover(session, id = "import_title")
-      removePopover(session, id = "tf_convert_topics")
-      removePopover(session, id = "topics_tab")
-      removePopover(session, id = "details_tab")
-      removePopover(session, id = "defaultName")
+      removePopover(session, id = "categorization_options_title")
+      removePopover(session, id = "count_by")
       removePopover(session, id = "multCtgsPerResponse")
-      removePopover(session, id = "")
+      removePopover(session, id = "defaultName")
+      removePopover(session, id = "ctgAdd")
     }
   })
   
@@ -1800,9 +1521,8 @@ server <- function(input, output, session) {
   #### Event Reactive -- fileValid ####
   ## Returns true if uploaded file is an accepted type
   output$fileValid <- eventReactive(input$responses, {
-    is_valid <- !is.null(getData())
-    
-    rv$file_is_valid <- is_valid # Save as a reactive value
+    is_valid <- !is.null(getData()) # Is valid if data does not contain an error code
+    rv$file_is_valid <- is_valid    # Save as a reactive value
     return(is_valid)
   })
   outputOptions(output, 'fileValid', suspendWhenHidden = FALSE)
@@ -1816,9 +1536,19 @@ server <- function(input, output, session) {
   outputOptions(output, 'showResults', suspendWhenHidden = FALSE)
   
   
+  #### Event Reactive -- displayError ####
+  ## When the RV error value changes, this will trigger the displaying of the error
+  output$displayError <- eventReactive(rv$error_to_display, {
+    # Returns TRUE if the error to display is not empty
+    return(!is.null(rv$error_to_display))
+  })
+  outputOptions(output, 'displayError', suspendWhenHidden = FALSE)
+  
+  
   #### Event Reactive -- plotDisplayed ####
   ## Returns true if plot has been created
   output$plotDisplayed <- eventReactive(input$update, {
+    # Returns TRUE if there's no error code (a number)
     return(!is.null(plotGG()))
   })
   outputOptions(output, 'plotDisplayed', suspendWhenHidden = FALSE)
@@ -1827,50 +1557,35 @@ server <- function(input, output, session) {
   #### Event Reactive -- tableDisplayed ####
   ## Returns true if table has been created
   output$tableDisplayed <- eventReactive(input$update, {
+    # Returns TRUE if there's no error code (a number)
     return(!is.null(plotTable()))
   })
   outputOptions(output, 'tableDisplayed', suspendWhenHidden = FALSE)
   
   
-  #### Event Reactive -- topicsFound ####
-  ## Makes sure the results are shown when topics are found
-  output$topicsFound <- eventReactive(rv$num_topics, {
-    # Returns true if any topics were found (as updated by Go! observe event)
-    return(rv$num_topics > 0) 
-  })
-  outputOptions(output, 'topicsFound', suspendWhenHidden = FALSE)
-  
-  
-  
   
   #### Render Plot ####
-  ## Displays plot of responses
+  ## Displays plot of responses when the RV value changes
   output$plot <- renderPlot({
-    # Create plot
-    # plot <- updatePushed_plotGG()
-    # Save created plot to reactive values, if not NULL
-    # if (!is.null(plot)) { rv$plot <- plot }
-    # Render plot saved in reactive values, if not NULL
-    if (!is.null(rv$plot)) {
-      return(rv$plot)
-    } else {
-      print("Cannot render plot; data is NULL")
-    }
+    # Render plot if the RV plot is not NULL
+    if (!is.null(rv$plot)) { return(rv$plot) }
   })
-  
-  
+
+
   #### Render Table ####
   ## Displays table of responses
   output$table <- renderDataTable({
-    # Save created table to reactive values
-    # table <- updatePushed_plotTable()
-    # Plot if return value is not NA
-    if (!is.null(rv$table)) {
-      return(rv$table)
-    } else {
-      print("Cannot render table; data is NULL")
-    }
+    # Render table if the RV table is not NULL
+    if (!is.null(rv$table)) { return(rv$table) }
   }, options = list(pageLength = 5))
+  
+  
+  
+  #### Render Error Text ####
+  ## Displays the RV error under the Update and Save buttons
+  output$error_text <- renderText({
+    return(rv$error_to_display)
+  })
   
   
   #### Render Aesthetic Customization UI's ####
@@ -2060,28 +1775,14 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  #### Render Topic Details Plot ####
-  output$tf_details_plot <- renderPlot({
-    # Plot the number of responses within each found topic
-    rv$response_topics %>%
-      group_by(Topic) %>% 
-      summarise(Count = n()) %>% # Data Label Column
-      ggplot() +
-      geom_col(aes(x = Topic, y = Count), fill = "dodgerblue4", color = "dodgerblue4") +
-      geom_text(aes(x = Topic, y = Count, label = Count), 
-                nudge_y = 15, color = "dodgerblue4") +
-      scale_x_continuous(breaks = seq(1, rv$num_topics)) +
-      labs(title = "Number of Responses per Topic", y = "Responses") +
-      theme_hc()
-  })
-  
-  
-  #### Render Topic Details Table ####
-  output$tf_details_tbl <- renderDataTable({
-    # Render Data Table
-    return(rv$response_topics)
-  }, options = list(pageLength = 10))
+  # #### Render Categorization Demo Image ###
+  # output$ctgzn_img <- renderImage(deleteFile = FALSE, {
+  #   return(list(
+  #     src = "./www/Categorization_Options_Demo.PNG",
+  #     contentType = "image/png",
+  #     alt = "Image"
+  #   ))
+  # })
   
   
   # #### Render RV Table ####
@@ -2089,8 +1790,8 @@ server <- function(input, output, session) {
   #   # Show all reactive values as a data table
   #   print(reactiveValuesToList(rv))
   # })
-  # 
-  # 
+  
+  
 }
 
 

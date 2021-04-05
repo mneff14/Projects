@@ -1,0 +1,13 @@
+name: Survey_Response_Categorizer
+title:
+username: mneff14
+account: mneff14
+server: shiny.byui.edu
+hostUrl: https://shiny.byui.edu/__api__
+appId: 1314
+bundleId: 2891
+url: https://shiny.byui.edu/content/1314/
+when: 1617265541.41818
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: www/Categorization_Options_Demo.PNG
